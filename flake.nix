@@ -3,6 +3,7 @@
 
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable-small";
     flake-compat.url = "github:edolstra/flake-compat";
   };
 
@@ -45,15 +46,12 @@
             paths = pkgs.lib.attrsets.attrValues python3Packages;
           };
           python3Packages = with pkgs.python3.pkgs; {
-            inherit torch_24;
+            inherit torch_2_4 torch_2_5;
           };
         };
       }
     )
     // {
-
-      # Cheating a bit to conform to the schema.
-      lib.config = config;
       overlays.default = overlay;
     };
 }
