@@ -40,6 +40,7 @@
       in
       rec {
         formatter = pkgs.nixfmt-rfc-style;
+        lib = import lib/build.nix { inherit pkgs; };
         packages = rec {
           all = pkgs.symlinkJoin {
             name = "all";
