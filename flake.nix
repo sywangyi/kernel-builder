@@ -46,7 +46,10 @@
             paths = pkgs.lib.attrsets.attrValues python3Packages;
           };
           python3Packages = with pkgs.python3.pkgs; {
-            inherit torch_2_4 torch_2_5;
+            torch_2_4 = torch_2_4.override { cxx11Abi = false; };
+            torch_2_4-cxx11Abi = torch_2_4.override { cxx11Abi = true; };
+            torch_2_5 = torch_2_5.override { cxx11Abi = false; };
+            torch_2_5-cxx11Abi = torch_2_5.override { cxx11Abi = true; };
           };
         };
       }

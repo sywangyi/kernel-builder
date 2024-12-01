@@ -23,6 +23,7 @@
   MPISupport ? false,
   mpi,
   buildDocs ? false,
+  cxx11Abi ? false,
 
   # tests.cudaAvailable:
   callPackage,
@@ -344,6 +345,9 @@ buildPythonPackage rec {
 
   # We only do an imports check, so do not build tests either.
   BUILD_TEST = setBool false;
+
+  # Whether to use C++11 ABI (or earlier).
+  _GLIBCXX_USE_CXX11_ABI = setBool cxx11Abi;
 
   # Unlike MKL, oneDNN (née MKLDNN) is FOSS, so we enable support for
   # it by default. PyTorch currently uses its own vendored version
