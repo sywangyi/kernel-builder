@@ -1,7 +1,10 @@
 {
-  kernelName,
-  kernelSources,
-  cudaCapabilities,
+  extensionName,
+  extensionSources,
+
+  # Keys are kernel names, values derivations.
+  kernels,
+
   src,
 
   lib,
@@ -17,7 +20,7 @@ let
   dropDot = builtins.replaceStrings ["."] [""];
   stdenv = cudaPackages.backendStdenv;
 in stdenv.mkDerivation {
-  name = "${kernelName}-unwrapped";
+  name = "${extensionName}-torch-ext";
 
   inherit src;
 
@@ -41,17 +44,23 @@ in stdenv.mkDerivation {
     libcublas
     libcusolver
     libcusparse
-  ]);
+  ]) ++ (lib.attrValues kernels);
+
 
   env = {
     CUDAToolkit_ROOT = "${lib.getDev cudaPackages.cuda_nvcc}";
     # Remove after removing torch dependency.
-    TORCH_CUDA_ARCH_LIST = lib.concatStringsSep ";" cudaCapabilities;
+    #TORCH_CUDA_ARCH_LIST = lib.concatStringsSep ";" cudaCapabilities;
   };
 
-  cmakeFlags = [
-    (lib.cmakeFeature "KERNEL_NAME" kernelName)
-    (lib.cmakeFeature "KERNEL_SOURCES" (lib.concatStringsSep " " kernelSources))
-    (lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
+  cmakeFlags =
+    let
+      kernelPath = name: drv: "${drv}/lib/lib${name}.a";
+      kernelLibs = lib.mapAttrsToList kernelPath kernels;
+    in [
+    (lib.cmakeFeature "EXTENSION_NAME" extensionName)
+    (lib.cmakeFeature "EXTENSION_SOURCES" (lib.concatStringsSep " " extensionSources))
+    (lib.cmakeFeature "KERNEL_LIBRARIES" (lib.concatStringsSep " " kernelLibs))
+    #(lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
   ];
 }

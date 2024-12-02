@@ -10,7 +10,7 @@ rec {
   buildKernelUnwrapped = { name, path, buildConfig }: pkgs.callPackage ./kernel {
     kernelName = name;
     cudaCapabilities = buildConfig.capabilities;
-    kernelSources = buildConfig.sources;
+    kernelSources = buildConfig.src;
     src = path;
     torch = pkgs.python3Packages.torch_2_4;
   };
@@ -22,4 +22,19 @@ rec {
       kernels = lib.mapAttrs (name: buildConfig: buildKernelUnwrapped {inherit name path buildConfig;}) buildConfig.kernel;
     in
       kernels;
+
+  buildTorchExtension =
+    path:
+    let
+      buildConfig = readBuildConfig path;
+      extConfig = buildConfig.extension;
+    in
+    pkgs.callPackage ./torch-extension {
+      extensionName = extConfig.name;
+      extensionSources = extConfig.src;
+      kernels = buildKernels path;
+      src = path;
+      torch = pkgs.python3Packages.torch_2_4;
+    };
+ 
 }
