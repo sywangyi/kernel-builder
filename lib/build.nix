@@ -39,13 +39,14 @@ rec {
     };
 
     buildNixTorchExtensions = let
-      # TODO: add CUDA versions.
       torchVersions = with pkgs.python3Packages; [ torch_2_4 ];
-      flattenVersion = version: ''torch${lib.replaceStrings ["."] [""] (lib.versions.pad 2 version)}'';
+      flattenVersion = version: lib.replaceStrings ["."] [""] (lib.versions.pad 2 version);
       abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
       targetPlatform = pkgs.stdenv.targetPlatform.system;
-      cudaVersion = torch: lib.replaceStrings ["."] [""] torch.cudaPackages.cudaMajorMinorVersion;
-      torchBuildVersion = torch: "${flattenVersion torch.version}-${abi torch}-cu${cudaVersion torch}-${targetPlatform}";
+      cudaVersion = torch: flattenVersion torch.cudaPackages.cudaMajorMinorVersion;
+      pythonVersion = torch: flattenVersion torch.pythonModule.version;
+      torchVersion = torch: flattenVersion torch.version;
+      torchBuildVersion = torch: "torch${torchVersion torch}-${abi torch}-cu${cudaVersion torch}-py${pythonVersion torch}-${targetPlatform}";
       extensionForTorch = path: torch: { name = torchBuildVersion torch; value = buildTorchExtension path torch; };
     in
       path: builtins.listToAttrs (lib.map (extensionForTorch path) torchVersions);
