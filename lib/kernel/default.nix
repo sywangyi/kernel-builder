@@ -15,15 +15,18 @@
 }:
 
 let
-  #ptx = lists.map (x: "${x}+PTX") cudaCapabilities;
-  #capabilities = cudaCapabilities ++ ptx;
-
   dropDot = builtins.replaceStrings ["."] [""];
   stdenv = cudaPackages.backendStdenv;
 in stdenv.mkDerivation {
+  name = "${kernelName}-unwrapped";
+
   inherit src;
 
-  name = "${kernelName}-unwrapped";
+  # Copy generic build files into the source tree.
+  postPatch = ''
+    cp ${./CMakeLists.txt} CMakeLists.txt
+  '';
+
 
   nativeBuildInputs = [ cmake ninja cudaPackages.cuda_nvcc ];
 
@@ -48,6 +51,8 @@ in stdenv.mkDerivation {
   };
 
   cmakeFlags = [
+    (lib.cmakeFeature "KERNEL_NAME" kernelName)
+    (lib.cmakeFeature "KERNEL_SOURCES" (lib.concatStringsSep " " kernelSources))
     (lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
   ];
 }
