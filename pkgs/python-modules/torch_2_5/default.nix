@@ -665,6 +665,7 @@ buildPythonPackage rec {
     inherit
       cudaSupport
       cudaPackages
+      cxx11Abi
       rocmSupport
       rocmPackages
       ;
