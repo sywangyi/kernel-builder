@@ -13,13 +13,14 @@
   ninja,
 
   # Remove, only here while we don't have a shim yet.
-  torch
+  torch,
 }:
 
 let
-  dropDot = builtins.replaceStrings ["."] [""];
+  dropDot = builtins.replaceStrings [ "." ] [ "" ];
   stdenv = cudaPackages.backendStdenv;
-in stdenv.mkDerivation {
+in
+stdenv.mkDerivation {
   name = "${extensionName}-torch-ext";
 
   inherit src;
@@ -29,23 +30,28 @@ in stdenv.mkDerivation {
     cp ${./CMakeLists.txt} CMakeLists.txt
   '';
 
+  nativeBuildInputs = [
+    cmake
+    ninja
+    cudaPackages.cuda_nvcc
+  ];
 
-  nativeBuildInputs = [ cmake ninja cudaPackages.cuda_nvcc ];
+  buildInputs =
+    [
+      torch
+      torch.cxxdev
+    ]
+    ++ (with cudaPackages; [
+      cuda_cudart
 
-  buildInputs = [
-    torch
-    torch.cxxdev
-  ] ++ (with cudaPackages; [
-    cuda_cudart
-
-    # Make dependent on build configuration dependencies once
-    # the Torch dependency is gone.
-    cuda_cccl
-    libcublas
-    libcusolver
-    libcusparse
-  ]) ++ (lib.attrValues kernels);
-
+      # Make dependent on build configuration dependencies once
+      # the Torch dependency is gone.
+      cuda_cccl
+      libcublas
+      libcusolver
+      libcusparse
+    ])
+    ++ (lib.attrValues kernels);
 
   env = {
     CUDAToolkit_ROOT = "${lib.getDev cudaPackages.cuda_nvcc}";
@@ -57,10 +63,11 @@ in stdenv.mkDerivation {
     let
       kernelPath = name: drv: "${drv}/lib/lib${name}.a";
       kernelLibs = lib.mapAttrsToList kernelPath kernels;
-    in [
-    (lib.cmakeFeature "EXTENSION_NAME" extensionName)
-    (lib.cmakeFeature "EXTENSION_SOURCES" (lib.concatStringsSep " " extensionSources))
-    (lib.cmakeFeature "KERNEL_LIBRARIES" (lib.concatStringsSep " " kernelLibs))
-    #(lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
-  ];
+    in
+    [
+      (lib.cmakeFeature "EXTENSION_NAME" extensionName)
+      (lib.cmakeFeature "EXTENSION_SOURCES" (lib.concatStringsSep " " extensionSources))
+      (lib.cmakeFeature "KERNEL_LIBRARIES" (lib.concatStringsSep " " kernelLibs))
+      #(lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
+    ];
 }

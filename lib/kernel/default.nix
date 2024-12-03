@@ -10,13 +10,14 @@
   ninja,
 
   # Remove, only here while we don't have a shim yet.
-  torch
+  torch,
 }:
 
 let
-  dropDot = builtins.replaceStrings ["."] [""];
+  dropDot = builtins.replaceStrings [ "." ] [ "" ];
   stdenv = cudaPackages.backendStdenv;
-in stdenv.mkDerivation {
+in
+stdenv.mkDerivation {
   name = "${kernelName}-unwrapped";
 
   inherit src;
@@ -26,22 +27,27 @@ in stdenv.mkDerivation {
     cp ${./CMakeLists.txt} CMakeLists.txt
   '';
 
+  nativeBuildInputs = [
+    cmake
+    ninja
+    cudaPackages.cuda_nvcc
+  ];
 
-  nativeBuildInputs = [ cmake ninja cudaPackages.cuda_nvcc ];
+  buildInputs =
+    [
+      torch
+      torch.cxxdev
+    ]
+    ++ (with cudaPackages; [
+      cuda_cudart
 
-  buildInputs = [
-    torch
-    torch.cxxdev
-  ] ++ (with cudaPackages; [
-    cuda_cudart
-
-    # Make dependent on build configuration dependencies once
-    # the Torch dependency is gone.
-    cuda_cccl
-    libcublas
-    libcusolver
-    libcusparse
-  ]);
+      # Make dependent on build configuration dependencies once
+      # the Torch dependency is gone.
+      cuda_cccl
+      libcublas
+      libcusolver
+      libcusparse
+    ]);
 
   env = {
     CUDAToolkit_ROOT = "${lib.getDev cudaPackages.cuda_nvcc}";
