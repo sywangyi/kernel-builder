@@ -17,6 +17,8 @@ rec {
 
   readBuildConfig = path: readToml (path + "/build.toml");
 
+  srcFilter = src: name: type: type == "directory" || lib.any (suffix: lib.hasSuffix suffix name) src;
+
   # Build a single kernel.
   buildKernel =
     {
@@ -25,12 +27,18 @@ rec {
       buildConfig,
       pkgs,
     }:
-    pkgs.callPackage ./kernel {
+    let
+      src = builtins.path {
+        inherit path;
+        name = "${name}-src";
+        filter = srcFilter buildConfig.src;
+      };
+    in pkgs.callPackage ./kernel {
+      inherit src;
       inherit (pkgs.python3.pkgs) torch;
       kernelName = name;
       cudaCapabilities = buildConfig.capabilities;
       kernelSources = buildConfig.src;
-      src = path;
     };
 
   # Build all kernels defined in build.toml.
@@ -58,13 +66,18 @@ rec {
     let
       buildConfig = readBuildConfig path;
       extConfig = buildConfig.extension;
+      src = builtins.path {
+        inherit path;
+        name = "${extConfig.name}-src";
+        filter = srcFilter extConfig.src;
+      };
     in
     pkgs.callPackage ./torch-extension {
+      inherit src;
       inherit (pkgs.python3.pkgs) torch;
       extensionName = extConfig.name;
       extensionSources = extConfig.src;
       kernels = buildKernels path pkgs;
-      src = path;
     };
 
   # Build a distributable Torch extension. In contrast to
