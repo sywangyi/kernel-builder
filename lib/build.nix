@@ -1,7 +1,19 @@
 { pkgs }:
 
-rec {
+let
   inherit (pkgs) lib;
+  flattenVersion = version: lib.replaceStrings [ "." ] [ "" ] (lib.versions.pad 2 version);
+  abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
+  targetPlatform = pkgs.stdenv.targetPlatform.system;
+  cudaVersion = torch: flattenVersion torch.cudaPackages.cudaMajorMinorVersion;
+  pythonVersion = torch: flattenVersion torch.pythonModule.version;
+  torchVersion = torch: flattenVersion torch.version;
+  torchBuildVersion =
+    torch:
+    "torch${torchVersion torch}-${abi torch}-cu${cudaVersion torch}-py${pythonVersion torch}-${targetPlatform}";
+
+in
+rec {
 
   readToml = path: builtins.fromTOML (builtins.readFile path);
 
@@ -31,6 +43,7 @@ rec {
     in
     kernels;
 
+  # Build a single Torch extension.
   buildTorchExtension =
     path: torch:
     let
@@ -45,18 +58,28 @@ rec {
       src = path;
     };
 
+  # Build a distributable Torch extension. In contrast to
+  # `buildTorchExtension`, this flavor has the rpath stripped, making it
+  # portable across Linux distributions. It also uses the build version
+  # as the top-level directory.
+  buildDistTorchExtension =
+    path: torch:
+    let
+      pkg = buildTorchExtension path torch;
+      buildVersion = torchBuildVersion torch;
+    in
+    pkgs.runCommand buildVersion { } ''
+      mkdir -p $out/${buildVersion}
+      find ${pkg}/lib -name '*.so' -exec cp --no-preserve=mode {} $out/${buildVersion} \;
+
+      find $out/${buildVersion} -name '*.so' \
+        -exec patchelf --set-rpath '/opt/hostedtoolcache/Python/3.11.9/x64/lib' {} \;
+    '';
+
+  # Build multiple Torch extensions.
   buildNixTorchExtensions =
     let
       torchVersions = with pkgs.python3Packages; [ torch_2_4 ];
-      flattenVersion = version: lib.replaceStrings [ "." ] [ "" ] (lib.versions.pad 2 version);
-      abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
-      targetPlatform = pkgs.stdenv.targetPlatform.system;
-      cudaVersion = torch: flattenVersion torch.cudaPackages.cudaMajorMinorVersion;
-      pythonVersion = torch: flattenVersion torch.pythonModule.version;
-      torchVersion = torch: flattenVersion torch.version;
-      torchBuildVersion =
-        torch:
-        "torch${torchVersion torch}-${abi torch}-cu${cudaVersion torch}-py${pythonVersion torch}-${targetPlatform}";
       extensionForTorch = path: torch: {
         name = torchBuildVersion torch;
         value = buildTorchExtension path torch;
@@ -64,18 +87,15 @@ rec {
     in
     path: builtins.listToAttrs (lib.map (extensionForTorch path) torchVersions);
 
-  # TODO: rewrite rpaths.
-  buildTorchExtensions =
+  # Build multiple Torch extensions.
+  buildDistTorchExtensions =
     let
-      stripRPath =
-        drv:
-        pkgs.runCommand "without-rpath" { } ''
-          mkdir -p $out/lib
-          find ${drv}/lib -name '*.so' -exec cp --no-preserve=mode {} $out/lib \;
-
-          find $out/lib -name '*.so' \
-            -exec patchelf --set-rpath '/opt/hostedtoolcache/Python/3.11.9/x64/lib' {} \;
-        '';
+      torchVersions = with pkgs.python3Packages; [ torch_2_4 ];
+      extensionForTorch = path: torch: {
+        name = torchBuildVersion torch;
+        value = buildDistTorchExtension path torch;
+      };
     in
-    path: lib.mapAttrs (v: drv: stripRPath drv) (buildNixTorchExtensions path);
+    path: builtins.listToAttrs (lib.map (extensionForTorch path) torchVersions);
+
 }
