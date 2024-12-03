@@ -25,7 +25,7 @@ Python_add_library(${EXTENSION_NAME} MODULE "${SOURCE_FILES}")
 target_compile_definitions(${EXTENSION_NAME} PRIVATE "-DTORCH_EXTENSION_NAME=${EXTENSION_NAME}")
 target_link_libraries(${EXTENSION_NAME} PRIVATE CUDA::cudart CUDA::cuda_driver)
 
-target_link_libraries(${EXTENSION_NAME} PRIVATE torch)
+target_link_libraries(${EXTENSION_NAME} PRIVATE torch torch_python)
 target_link_libraries(${EXTENSION_NAME} PRIVATE ${KERNEL_LIBRARIES})
 set_target_properties(${EXTENSION_NAME} PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
