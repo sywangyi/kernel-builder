@@ -19,7 +19,8 @@ rec {
 
   readBuildConfig = path: readToml (path + "/build.toml");
 
-  buildKernelUnwrapped =
+  # Build a single kernel.
+  buildKernel =
     {
       name,
       path,
@@ -33,12 +34,13 @@ rec {
       torch = pkgs.python3Packages.torch_2_4;
     };
 
+  # Build all kernels defined in build.toml.
   buildKernels =
     path:
     let
       buildConfig = readBuildConfig path;
       kernels = lib.mapAttrs (
-        name: buildConfig: buildKernelUnwrapped { inherit name path buildConfig; }
+        name: buildConfig: buildKernel { inherit name path buildConfig; }
       ) buildConfig.kernel;
     in
     kernels;
