@@ -1,4 +1,11 @@
-{ pkgs }:
+{
+  # Pristine nixpkgs, should only be used for utility functions.
+  pkgs,
+
+  # List of packages sets, where each has a different CUDA/Torch
+  # specialization.
+  pkgsForBuildConfigs,
+}:
 
 let
   inherit (pkgs) lib;
@@ -8,10 +15,7 @@ let
   cudaVersion = torch: flattenVersion torch.cudaPackages.cudaMajorMinorVersion;
   pythonVersion = torch: flattenVersion torch.pythonModule.version;
   torchVersion = torch: flattenVersion torch.version;
-  torchBuildVersion =
-    torch:
-    "torch${torchVersion torch}-${abi torch}-cu${cudaVersion torch}-py${pythonVersion torch}-${targetPlatform}";
-
+  torchBuildVersion = import ./build-version.nix;
 in
 rec {
 
@@ -25,38 +29,39 @@ rec {
       name,
       path,
       buildConfig,
+      pkgs
     }:
     pkgs.callPackage ./kernel {
+      inherit (pkgs.python3.pkgs) torch;
       kernelName = name;
       cudaCapabilities = buildConfig.capabilities;
       kernelSources = buildConfig.src;
       src = path;
-      torch = pkgs.python3Packages.torch_2_4;
     };
 
   # Build all kernels defined in build.toml.
   buildKernels =
-    path:
+    path: pkgs:
     let
       buildConfig = readBuildConfig path;
       kernels = lib.mapAttrs (
-        name: buildConfig: buildKernel { inherit name path buildConfig; }
+        name: buildConfig: buildKernel { inherit name path buildConfig pkgs; }
       ) buildConfig.kernel;
     in
     kernels;
 
   # Build a single Torch extension.
   buildTorchExtension =
-    path: torch:
+    path: pkgs:
     let
       buildConfig = readBuildConfig path;
       extConfig = buildConfig.extension;
     in
     pkgs.callPackage ./torch-extension {
-      inherit torch;
+      inherit (pkgs.python3.pkgs) torch;
       extensionName = extConfig.name;
       extensionSources = extConfig.src;
-      kernels = buildKernels path;
+      kernels = buildKernels path pkgs;
       src = path;
     };
 
@@ -65,10 +70,10 @@ rec {
   # portable across Linux distributions. It also uses the build version
   # as the top-level directory.
   buildDistTorchExtension =
-    path: torch:
+    path: pkgs:
     let
-      pkg = buildTorchExtension path torch;
-      buildVersion = torchBuildVersion torch;
+      pkg = buildTorchExtension path pkgs;
+      buildVersion = torchBuildVersion pkgs;
     in
     pkgs.runCommand buildVersion { } ''
       mkdir -p $out/${buildVersion}
@@ -81,23 +86,22 @@ rec {
   # Build multiple Torch extensions.
   buildNixTorchExtensions =
     let
-      torchVersions = with pkgs.python3Packages; [ torch_2_4 ];
+      torchVersions = map (pkgs: pkgs.python3.pkgs.torch) pkgsForBuildConfigs;
       extensionForTorch = path: torch: {
-        name = torchBuildVersion torch;
+        name = torchBuildVersion pkgs;
         value = buildTorchExtension path torch;
       };
     in
-    path: builtins.listToAttrs (lib.map (extensionForTorch path) torchVersions);
+    path: builtins.listToAttrs (lib.map (extensionForTorch path) pkgsForBuildConfigs);
 
   # Build multiple Torch extensions.
   buildDistTorchExtensions =
     let
-      torchVersions = with pkgs.python3Packages; [ torch_2_4 ];
-      extensionForTorch = path: torch: {
-        name = torchBuildVersion torch;
-        value = buildDistTorchExtension path torch;
+      extensionForTorch = path: pkgs: {
+        name = torchBuildVersion pkgs;
+        value = buildDistTorchExtension path pkgs;
       };
     in
-    path: builtins.listToAttrs (lib.map (extensionForTorch path) torchVersions);
+    path: builtins.listToAttrs (lib.map (extensionForTorch path) pkgsForBuildConfigs);
 
 }

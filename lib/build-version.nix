@@ -6,7 +6,6 @@ let
   abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
   targetPlatform = pkgs.stdenv.targetPlatform.system;
   cudaVersion = torch: flattenVersion torch.cudaPackages.cudaMajorMinorVersion;
-  pythonVersion = torch: flattenVersion torch.pythonModule.version;
   torchVersion = torch: flattenVersion torch.version;
 in
-"torch${torchVersion torch}-${abi torch}-cu${cudaVersion torch}-py${pythonVersion torch}-${targetPlatform}"
+"torch${torchVersion torch}-${abi torch}-cu${cudaVersion torch}-${targetPlatform}"

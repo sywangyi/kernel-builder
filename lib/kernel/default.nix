@@ -18,7 +18,7 @@ let
   stdenv = cudaPackages.backendStdenv;
 in
 stdenv.mkDerivation {
-  name = "${kernelName}-unwrapped";
+  name = kernelName;
 
   inherit src;
 
