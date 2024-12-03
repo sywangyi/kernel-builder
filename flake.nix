@@ -93,16 +93,17 @@
       in
       rec {
         formatter = pkgs.nixfmt-rfc-style;
-        lib = import lib/build.nix { inherit pkgs pkgsForBuildConfigs; };
+        lib = import lib/build.nix {
+          inherit (pkgs) lib;
+          inherit pkgsForBuildConfigs;
+        };
         packages = rec {
           # This package set is exposed so that we can prebuild the Torch versions.
           torch = builtins.listToAttrs (
-            map (
-              pkgs': {
-                name = buildVersion pkgs';
-                value = pkgs'.python3.pkgs.torch;
-              }
-            ) pkgsForBuildConfigs
+            map (pkgs': {
+              name = buildVersion pkgs';
+              value = pkgs'.python3.pkgs.torch;
+            }) pkgsForBuildConfigs
           );
         };
       }

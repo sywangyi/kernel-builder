@@ -1,6 +1,5 @@
 {
-  # Pristine nixpkgs, should only be used for utility functions.
-  pkgs,
+  lib,
 
   # List of packages sets, where each has a different CUDA/Torch
   # specialization.
@@ -8,13 +7,8 @@
 }:
 
 let
-  inherit (pkgs) lib;
   flattenVersion = version: lib.replaceStrings [ "." ] [ "" ] (lib.versions.pad 2 version);
   abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
-  targetPlatform = pkgs.stdenv.targetPlatform.system;
-  cudaVersion = torch: flattenVersion torch.cudaPackages.cudaMajorMinorVersion;
-  pythonVersion = torch: flattenVersion torch.pythonModule.version;
-  torchVersion = torch: flattenVersion torch.version;
   torchBuildVersion = import ./build-version.nix;
 in
 rec {
@@ -29,7 +23,7 @@ rec {
       name,
       path,
       buildConfig,
-      pkgs
+      pkgs,
     }:
     pkgs.callPackage ./kernel {
       inherit (pkgs.python3.pkgs) torch;
@@ -45,7 +39,15 @@ rec {
     let
       buildConfig = readBuildConfig path;
       kernels = lib.mapAttrs (
-        name: buildConfig: buildKernel { inherit name path buildConfig pkgs; }
+        name: buildConfig:
+        buildKernel {
+          inherit
+            name
+            path
+            buildConfig
+            pkgs
+            ;
+        }
       ) buildConfig.kernel;
     in
     kernels;
@@ -87,9 +89,9 @@ rec {
   buildNixTorchExtensions =
     let
       torchVersions = map (pkgs: pkgs.python3.pkgs.torch) pkgsForBuildConfigs;
-      extensionForTorch = path: torch: {
+      extensionForTorch = path: pkgs: {
         name = torchBuildVersion pkgs;
-        value = buildTorchExtension path torch;
+        value = buildTorchExtension path pkgs;
       };
     in
     path: builtins.listToAttrs (lib.map (extensionForTorch path) pkgsForBuildConfigs);
