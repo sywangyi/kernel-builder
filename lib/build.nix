@@ -68,7 +68,7 @@ rec {
     path: pkgs:
     let
       buildConfig = readBuildConfig path;
-      extConfig = buildConfig.extension;
+      extConfig = buildConfig.torch;
       src = builtins.path {
         inherit path;
         name = "${extConfig.name}-src";
