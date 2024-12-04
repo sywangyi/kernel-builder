@@ -66,7 +66,7 @@ stdenv.mkDerivation {
     in
     [
       (lib.cmakeFeature "EXTENSION_NAME" extensionName)
-      (lib.cmakeFeature "EXTENSION_SOURCES" (lib.concatStringsSep " " extensionSources))
+      (lib.cmakeFeature "EXTENSION_SOURCES" (lib.concatStringsSep ";" extensionSources))
       (lib.cmakeFeature "KERNEL_LIBRARIES" (lib.concatStringsSep " " kernelLibs))
       #(lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
     ];

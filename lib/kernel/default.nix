@@ -57,7 +57,7 @@ stdenv.mkDerivation {
 
   cmakeFlags = [
     (lib.cmakeFeature "KERNEL_NAME" kernelName)
-    (lib.cmakeFeature "KERNEL_SOURCES" (lib.concatStringsSep " " kernelSources))
+    (lib.cmakeFeature "KERNEL_SOURCES" (lib.concatStringsSep ";" kernelSources))
     (lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
   ];
 }
