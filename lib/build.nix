@@ -65,7 +65,11 @@ rec {
 
   # Build a single Torch extension.
   buildTorchExtension =
-    path: pkgs:
+    {
+      path,
+      pkgs,
+      stripRPath ? false,
+    }:
     let
       buildConfig = readBuildConfig path;
       extConfig = buildConfig.torch;
@@ -76,7 +80,7 @@ rec {
       };
     in
     pkgs.callPackage ./torch-extension {
-      inherit src;
+      inherit src stripRPath;
       inherit (pkgs.python3.pkgs) torch;
       extensionName = extConfig.name;
       extensionSources = extConfig.src;
@@ -90,18 +94,10 @@ rec {
   # as the top-level directory.
   buildDistTorchExtension =
     path: pkgs:
-    let
-      pkg = buildTorchExtension path pkgs;
-      buildVersion = torchBuildVersion pkgs;
-    in
-    pkgs.runCommand buildVersion { } ''
-      mkdir -p $out/${buildVersion}
-      cp --no-preserve=mode -r ${pkg}/* $out/${buildVersion}/
-
-      # And scrub the rpath.
-      find $out/${buildVersion} -name '*.so' \
-        -exec patchelf --set-rpath '/opt/hostedtoolcache/Python/3.11.9/x64/lib' {} \;
-    '';
+    buildTorchExtension {
+      inherit path pkgs;
+      stripRPath = true;
+    };
 
   # Build multiple Torch extensions.
   buildNixTorchExtensions =
@@ -127,16 +123,10 @@ rec {
   buildTorchExtensionBundle =
     path:
     let
-      # We just need any nixpkgs to get runCommand.
+      # We just need to get any nixpkgs for use by the path join.
       pkgs = builtins.head pkgsForBuildConfigs;
       extensions = buildDistTorchExtensions path;
-      paths = map (ext: ''"${ext}"'') (lib.attrValues extensions);
+      namePaths = lib.mapAttrs (name: pkg: toString pkg) extensions;
     in
-    pkgs.runCommand "extensions-bundle" { } ''
-      mkdir -p $out
-      for extension in ${lib.concatStringsSep " " paths}; do
-        cp -r "$extension"/* $out/
-      done
-    '';
-
+    import ./join-paths { inherit pkgs namePaths; };
 }

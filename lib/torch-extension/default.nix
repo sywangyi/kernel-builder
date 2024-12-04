@@ -3,6 +3,9 @@
   extensionSources,
   pySources,
 
+  # Wheter to strip rpath for non-nix use.
+  stripRPath ? false,
+
   # Keys are kernel names, values derivations.
   kernels,
 
@@ -72,9 +75,19 @@ stdenv.mkDerivation {
       #(lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
     ];
 
-    postInstall = let
+  postInstall =
+    let
       pySources' = map (src: ''"${src}"'') pySources;
-    in ''
+    in
+    ''
       ( cd .. ; cp ${lib.concatStringsSep " " pySources'} $out/${extensionName}/ )
+    ''
+    + lib.optionals stripRPath ''
+      find $out/${extensionName} -name '*.so' \
+        -exec patchelf --set-rpath "" {} \;
     '';
+
+  passthru = {
+    inherit torch;
+  };
 }
