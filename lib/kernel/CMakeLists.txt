@@ -15,8 +15,18 @@ else()
   message(FATAL_ERROR "KERNEL_SOURCES must be defined")
 endif()
 
+set(GPU_COMPILE_FLAGS "")
+
+if(DEFINED NVCC_THREADS)
+  list(APPEND GPU_COMPILE_FLAGS "--threads=${NVCC_THREADS}")
+  message(STATUS "Number of nvcc threads: ${NVCC_THREADS}")
+endif()
+
 
 add_library(${KERNEL_NAME} STATIC ${SOURCE_FILES})
+
+target_compile_options(${KERNEL_NAME} PRIVATE
+  $<$<COMPILE_LANGUAGE:CUDA>:${GPU_COMPILE_FLAGS}>)
 
 target_link_libraries(${KERNEL_NAME} PRIVATE ${TORCH_LIBRARIES})
 set_target_properties(${EXTENSION_NAME} PROPERTIES

@@ -11,6 +11,8 @@
 
   # Remove, only here while we don't have a shim yet.
   torch,
+
+  nvccThreads ? 4,
 }:
 
 let
@@ -59,5 +61,11 @@ stdenv.mkDerivation {
     (lib.cmakeFeature "KERNEL_NAME" kernelName)
     (lib.cmakeFeature "KERNEL_SOURCES" (lib.concatStringsSep ";" kernelSources))
     (lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
+    (lib.cmakeFeature "NVCC_THREADS" (toString nvccThreads))
   ];
+
+  preBuild = ''
+    # Even when using nvcc threading, we should respect the bound.
+    export NIX_BUILD_CORES=$(($NIX_BUILD_CORES / ${toString nvccThreads}))
+  '';
 }
