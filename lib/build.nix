@@ -17,7 +17,9 @@ rec {
 
   readBuildConfig = path: readToml (path + "/build.toml");
 
-  srcFilter = src: name: type: type == "directory" || lib.any (suffix: lib.hasSuffix suffix name) src;
+  srcFilter =
+    src: name: type:
+    type == "directory" || lib.any (suffix: lib.hasSuffix suffix name) src;
 
   # Build a single kernel.
   buildKernel =
@@ -33,7 +35,8 @@ rec {
         name = "${name}-src";
         filter = srcFilter buildConfig.src;
       };
-    in pkgs.callPackage ./kernel {
+    in
+    pkgs.callPackage ./kernel {
       inherit src;
       inherit (pkgs.python3.pkgs) torch;
       kernelName = name;
@@ -118,5 +121,20 @@ rec {
       };
     in
     path: builtins.listToAttrs (lib.map (extensionForTorch path) pkgsForBuildConfigs);
+
+  buildTorchExtensionBundle =
+    path:
+    let
+      # We just need any nixpkgs to get runCommand.
+      pkgs = builtins.head pkgsForBuildConfigs;
+      extensions = buildDistTorchExtensions path;
+      paths = map (ext: ''"${ext}"'') (lib.attrValues extensions);
+    in
+    pkgs.runCommand "extensions-bundle" { } ''
+      mkdir -p $out
+      for extension in ${lib.concatStringsSep " " paths}; do
+        cp -r "$extension"/* $out/
+      done
+    '';
 
 }
