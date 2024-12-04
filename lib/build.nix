@@ -72,7 +72,7 @@ rec {
       src = builtins.path {
         inherit path;
         name = "${extConfig.name}-src";
-        filter = srcFilter extConfig.src;
+        filter = srcFilter (extConfig.src ++ extConfig.pysrc);
       };
     in
     pkgs.callPackage ./torch-extension {
@@ -80,6 +80,7 @@ rec {
       inherit (pkgs.python3.pkgs) torch;
       extensionName = extConfig.name;
       extensionSources = extConfig.src;
+      pySources = extConfig.pysrc;
       kernels = buildKernels path pkgs;
     };
 
@@ -95,8 +96,9 @@ rec {
     in
     pkgs.runCommand buildVersion { } ''
       mkdir -p $out/${buildVersion}
-      find ${pkg}/lib -name '*.so' -exec cp --no-preserve=mode {} $out/${buildVersion} \;
+      cp --no-preserve=mode -r ${pkg}/* $out/${buildVersion}/
 
+      # And scrub the rpath.
       find $out/${buildVersion} -name '*.so' \
         -exec patchelf --set-rpath '/opt/hostedtoolcache/Python/3.11.9/x64/lib' {} \;
     '';

@@ -1,6 +1,7 @@
 {
   extensionName,
   extensionSources,
+  pySources,
 
   # Keys are kernel names, values derivations.
   kernels,
@@ -70,4 +71,10 @@ stdenv.mkDerivation {
       (lib.cmakeFeature "KERNEL_LIBRARIES" (lib.concatStringsSep " " kernelLibs))
       #(lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
     ];
+
+    postInstall = let
+      pySources' = map (src: ''"${src}"'') pySources;
+    in ''
+      ( cd .. ; cp ${lib.concatStringsSep " " pySources'} $out/${extensionName}/ )
+    '';
 }
