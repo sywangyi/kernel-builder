@@ -128,5 +128,8 @@ rec {
       extensions = buildDistTorchExtensions path;
       namePaths = lib.mapAttrs (name: pkg: toString pkg) extensions;
     in
-    import ./join-paths { inherit pkgs namePaths; };
+    import ./join-paths {
+      inherit pkgs namePaths;
+      name = "torch-ext-bundle";
+    };
 }

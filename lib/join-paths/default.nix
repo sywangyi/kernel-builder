@@ -1,6 +1,8 @@
 args@{
   pkgs,
 
+  name,
+
   # Attribute set with names to paths.
   namePaths,
 
@@ -10,6 +12,7 @@ args@{
 let
   inherit (pkgs) lib;
   args_ = removeAttrs args [
+    "name"
     "pkgs"
     "namePaths"
   ];
@@ -20,4 +23,4 @@ let
     cp -r ${pkg}/* ${placeholder "out"}/${path}
   '';
 in
-pkgs.runCommand "name" args_ (lib.concatStringsSep "\n" (lib.mapAttrsToList copyPath namePaths))
+pkgs.runCommand name args_ (lib.concatStringsSep "\n" (lib.mapAttrsToList copyPath namePaths))
