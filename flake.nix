@@ -29,6 +29,9 @@
         pkgs = import nixpkgs { inherit system; };
         inherit (pkgs) lib;
 
+        # Get versions.
+        inherit (pkgs.callPackage ./versions.nix {}) buildConfigs cudaVersions;
+
         buildVersion = import ./lib/build-version.nix;
         flattenVersion = version: lib.replaceStrings [ "." ] [ "_" ] (lib.versions.pad 2 version);
 
@@ -72,26 +75,6 @@
               };
             }) cudaVersions
           );
-
-        # Supported CUDA versions.
-        cudaVersions = [
-          "11.8"
-          "12.1"
-          "12.4"
-        ];
-
-        # All build configurations supported by Torch.
-        buildConfigs = lib.cartesianProduct {
-          cudaVersion = cudaVersions;
-          torchVersion = [
-            "2.4"
-            "2.5"
-          ];
-          cxx11Abi = [
-            true
-            false
-          ];
-        };
 
         pkgsByCudaVer = pkgsForCudaVersions cudaVersions;
         buildSets = map (pkgsForVersions pkgsByCudaVer) buildConfigs;
