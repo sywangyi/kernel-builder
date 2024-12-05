@@ -106,9 +106,9 @@
         packages = rec {
           # This package set is exposed so that we can prebuild the Torch versions.
           torch = builtins.listToAttrs (
-            map (pkgs': {
-              name = buildVersion pkgs';
-              value = pkgs'.python3.pkgs.torch;
+            map (buildSet: {
+              name = buildVersion buildSet;
+              value = buildSet.torch;
             }) buildSets
           );
         };
