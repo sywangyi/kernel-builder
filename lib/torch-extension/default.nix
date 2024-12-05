@@ -1,5 +1,6 @@
 {
   extensionName,
+  extensionVersion,
   extensionSources,
   pySources,
 
@@ -21,11 +22,12 @@
 }:
 
 let
-  dropDot = builtins.replaceStrings [ "." ] [ "" ];
+  flatVersion = lib.replaceStrings [ "." ] [ "_" ] (lib.versions.pad 3 extensionVersion);
   stdenv = cudaPackages.backendStdenv;
 in
 stdenv.mkDerivation {
-  name = "${extensionName}-torch-ext";
+  pname = "${extensionName}-torch-ext";
+  version = extensionVersion;
 
   inherit src;
 
@@ -69,10 +71,10 @@ stdenv.mkDerivation {
       kernelLibs = lib.mapAttrsToList kernelPath kernels;
     in
     [
-      (lib.cmakeFeature "EXTENSION_NAME" extensionName)
+      (lib.cmakeFeature "EXTENSION_NAME" "_${extensionName}_${flatVersion}")
+      (lib.cmakeFeature "EXTENSION_DEST" extensionName)
       (lib.cmakeFeature "EXTENSION_SOURCES" (lib.concatStringsSep ";" extensionSources))
       (lib.cmakeFeature "KERNEL_LIBRARIES" (lib.concatStringsSep " " kernelLibs))
-      #(lib.cmakeFeature "CMAKE_CUDA_ARCHITECTURES" (dropDot (lib.concatStringsSep ";" cudaCapabilities)))
     ];
 
   postInstall =
@@ -80,7 +82,12 @@ stdenv.mkDerivation {
       pySources' = map (src: ''"${src}"'') pySources;
     in
     ''
-      ( cd .. ; cp ${lib.concatStringsSep " " pySources'} $out/${extensionName}/ )
+      (
+        cd ..
+        cp ${lib.concatStringsSep " " pySources'} $out/${extensionName}/
+        substitute ${./_ops.py.in} $out/${extensionName}/_ops.py \
+          --subst-var-by EXTENSION_NAME "${extensionName}_${flatVersion}"
+      )
     ''
     + lib.optionalString stripRPath ''
       find $out/${extensionName} -name '*.so' \

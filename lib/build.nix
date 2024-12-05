@@ -49,7 +49,11 @@ rec {
 
   # Build all kernels defined in build.toml.
   buildKernels =
-    {path, pkgs, torch}:
+    {
+      path,
+      pkgs,
+      torch,
+    }:
     let
       buildConfig = readBuildConfig path;
       kernels = lib.mapAttrs (
@@ -88,8 +92,9 @@ rec {
       inherit src stripRPath torch;
       extensionName = extConfig.name;
       extensionSources = extConfig.src;
+      extensionVersion = buildConfig.general.version;
       pySources = extConfig.pysrc;
-      kernels = buildKernels {inherit path pkgs torch; };
+      kernels = buildKernels { inherit path pkgs torch; };
     };
 
   # Build a distributable Torch extension. In contrast to
@@ -98,10 +103,13 @@ rec {
   # as the top-level directory.
   buildDistTorchExtension =
     path: buildSet:
-    buildTorchExtension ({
-      inherit path;
-      stripRPath = true;
-    } // buildSet);
+    buildTorchExtension (
+      {
+        inherit path;
+        stripRPath = true;
+      }
+      // buildSet
+    );
 
   # Build multiple Torch extensions.
   buildNixTorchExtensions =
