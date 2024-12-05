@@ -1,6 +1,6 @@
 # kernel-builder
 
-This repo contains a nix package that can be used to build custom machine learning kernels for PyTorch. The kernels are built using the [PyTorch C++ Frontend](https://pytorch.org/cppdocs/frontend.html) and can be loaded in PyTorch using the `torch.ops.load_library` function.
+This repo contains a Nix package that can be used to build custom machine learning kernels for PyTorch. The kernels are built using the [PyTorch C++ Frontend](https://pytorch.org/cppdocs/frontend.html) and can be loaded in PyTorch using the `torch.ops.load_library` function.
 
 This builder is a core component of the larger kernel build/distribution system.
 
@@ -20,13 +20,13 @@ docker run --rm \
 
 ## Final Output
 
-The whole goal of building these kernels is to allow researchers, developers, and programmers to use high performance kernels in their code PyTorch code. The final output of the kernel builder is a `.so` file that can be loaded in PyTorch using the `torch.ops.load_library` function. 
+The whole goal of building these kernels is to allow researchers, developers, and programmers to use high performance kernels in their code PyTorch code. The final output of the kernel builder is a `.so` file that can be loaded in PyTorch using the `torch.ops.load_library` function.
 
 ```python
 import torch
 import sys
 
-torch_version = "24"        
+torch_version = "24"
 cuda_version = "121"
 
 kernel_build_path = "/home/ubuntu/activation/result"
@@ -44,10 +44,9 @@ print(out)
 
 ## Reproducible run
 
-```bash
 ### Accessing kernel in expected format
 
-kernels will be available in the [kernel-community](https://huggingface.co/kernels-community) on huggingface.co. 
+Kernels will be available in the [kernel-community](https://huggingface.co/kernels-community) on huggingface.co.
 
 We can reproduce a build of a kernel by cloning the kernel repository and running the build command.
 
@@ -66,12 +65,11 @@ ls result
 # torch24-cxx98-cu118-x86_64-linux  torch25-cxx11-cu121-x86_64-linux  torch25-cxx98-cu124-x86_64-linux
 ```
 
-
 ## Development Notes
 
 ### Nix
 
-To build the kernel you need to have nix installed on your machine. You can install nix by running the following command:
+To build the kernel you need to have Nix installed on your machine. You can install Nix by running the following command:
 
 ```bash
 # ../
@@ -85,8 +83,7 @@ nix build --impure --expr 'with import ../kernel-builder; lib.x86_64-linux.build
 
 ### Docker
 
-Addtionally we provide a [Dockerfile](./Dockerfile) that relieve you from the need to install nix on your machine and enable you to build the kernel using a docker container.
-
+Additionally we provide a [Dockerfile](./Dockerfile) that relieve you from the need to install Nix on your machine and enable you to build the kernel using a docker container.
 
 ```bash
 # ../
