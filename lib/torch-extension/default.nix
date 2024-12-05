@@ -82,7 +82,7 @@ stdenv.mkDerivation {
     ''
       ( cd .. ; cp ${lib.concatStringsSep " " pySources'} $out/${extensionName}/ )
     ''
-    + lib.optionals stripRPath ''
+    + lib.optionalString stripRPath ''
       find $out/${extensionName} -name '*.so' \
         -exec patchelf --set-rpath "" {} \;
     '';

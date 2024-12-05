@@ -25,60 +25,56 @@
     flake-utils.lib.eachSystem [ flake-utils.lib.system.x86_64-linux ] (
       system:
       let
-        pkgs = import nixpkgs {
-          inherit config system;
-          overlays = [ overlay ];
-        };
+        # Plain nixkpgs that we use to access utility funtions.
+        pkgs = import nixpkgs {};
+        inherit (pkgs) lib;
+
         buildVersion = import ./lib/build-version.nix;
+        flattenVersion = version: pkgs.lib.replaceStrings [ "." ] [ "_" ] (lib.versions.pad 2 version);
+
+        # An overlay that overides CUDA to the given version.
         overlayForCudaVersion = cudaVersion: self: super: {
           cudaPackages =
-            super."cudaPackages_${
-              self.lib.replaceStrings [ "." ] [ "_" ] (self.lib.versions.pad 2 cudaVersion)
-            }";
+            super."cudaPackages_${flattenVersion cudaVersion}";
         };
-        overlayForTorchVersion =
-          { version, cxx11Abi }:
-          self: super: {
-            pythonPackagesExtensions = super.pythonPackagesExtensions ++ [
-              (
-                python-self: python-super: with python-self; {
-                  torch =
-                    python-super."torch_${
-                      self.lib.replaceStrings [ "." ] [ "_" ] (self.lib.versions.pad 2 version)
-                    }".override
-                      { inherit cxx11Abi; };
-                }
-              )
-            ];
-
-          };
 
         # Construct the nixpkgs package set for the given versions.
         pkgsForVersions =
+          pkgsByCudaVer:
           {
             cudaVersion,
             torchVersion,
             cxx11Abi,
           }:
-          import nixpkgs {
+          let
+            pkgsForCudaVersion = pkgsByCudaVer.${cudaVersion};
+            torch = pkgsForCudaVersion.python3.pkgs."torch_${flattenVersion torchVersion}".override {
+              inherit cxx11Abi;
+            };
+          in {
+            inherit torch;
+            pkgs = pkgsForCudaVersion;
+          };
+
+        # Instantiate nixpkgs for the given CUDA versions. Returns
+        # an attribute set like `{ "12.4" = <nixpkgs with 12.4>; ... }`.
+        pkgsForCudaVersions = cudaVersions: builtins.listToAttrs (map (cudaVersion: {
+          name = cudaVersion;
+          value = import nixpkgs {
             inherit config system;
             overlays = [
               overlay
               (overlayForCudaVersion cudaVersion)
-              (overlayForTorchVersion {
-                inherit cxx11Abi;
-                version = torchVersion;
-              })
             ];
           };
+        }) cudaVersions);
+
+        # Supported CUDA versions.
+        cudaVersions = ["11.8" "12.1" "12.4"];
 
         # All build configurations supported by Torch.
         buildConfigs = pkgs.lib.cartesianProduct {
-          cudaVersion = [
-            "11.8"
-            "12.1"
-            "12.4"
-          ];
+          cudaVersion = cudaVersions;
           torchVersion = [
             "2.4"
             "2.5"
@@ -89,13 +85,15 @@
           ];
         };
 
-        pkgsForBuildConfigs = map pkgsForVersions buildConfigs;
+        pkgsByCudaVer = pkgsForCudaVersions cudaVersions;
+        buildSets = map (pkgsForVersions pkgsByCudaVer) buildConfigs;
+        
       in
       rec {
         formatter = pkgs.nixfmt-rfc-style;
         lib = import lib/build.nix {
           inherit (pkgs) lib;
-          inherit pkgsForBuildConfigs;
+          inherit buildSets;
         };
         packages = rec {
           # This package set is exposed so that we can prebuild the Torch versions.
@@ -103,7 +101,7 @@
             map (pkgs': {
               name = buildVersion pkgs';
               value = pkgs'.python3.pkgs.torch;
-            }) pkgsForBuildConfigs
+            }) buildSets
           );
         };
       }

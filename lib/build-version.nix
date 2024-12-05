@@ -1,7 +1,6 @@
-pkgs:
+{ pkgs, torch }:
 let
   inherit (pkgs) lib;
-  inherit (pkgs.python3.pkgs) torch;
   flattenVersion = version: lib.replaceStrings [ "." ] [ "" ] (lib.versions.pad 2 version);
   abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
   targetPlatform = pkgs.stdenv.targetPlatform.system;

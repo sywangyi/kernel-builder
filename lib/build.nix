@@ -1,13 +1,16 @@
 {
   lib,
 
-  # List of packages sets, where each has a different CUDA/Torch
-  # specialization.
-  pkgsForBuildConfigs,
+  # List of build sets. Each build set is a attrset of the form
+  #
+  #     { pkgs = <nixpkgs>, torch = <torch drv> }
+  #
+  # The Torch derivation is built as-is. So e.g. the ABI version should
+  # already be set.
+  buildSets,
 }:
 
 let
-  flattenVersion = version: lib.replaceStrings [ "." ] [ "" ] (lib.versions.pad 2 version);
   abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
   torchBuildVersion = import ./build-version.nix;
 in
@@ -28,6 +31,7 @@ rec {
       path,
       buildConfig,
       pkgs,
+      torch,
     }:
     let
       src = builtins.path {
@@ -37,8 +41,7 @@ rec {
       };
     in
     pkgs.callPackage ./kernel {
-      inherit src;
-      inherit (pkgs.python3.pkgs) torch;
+      inherit src torch;
       kernelName = name;
       cudaCapabilities = buildConfig.capabilities;
       kernelSources = buildConfig.src;
@@ -46,7 +49,7 @@ rec {
 
   # Build all kernels defined in build.toml.
   buildKernels =
-    path: pkgs:
+    {path, pkgs, torch}:
     let
       buildConfig = readBuildConfig path;
       kernels = lib.mapAttrs (
@@ -57,6 +60,7 @@ rec {
             path
             buildConfig
             pkgs
+            torch
             ;
         }
       ) buildConfig.kernel;
@@ -68,6 +72,7 @@ rec {
     {
       path,
       pkgs,
+      torch,
       stripRPath ? false,
     }:
     let
@@ -80,51 +85,49 @@ rec {
       };
     in
     pkgs.callPackage ./torch-extension {
-      inherit src stripRPath;
-      inherit (pkgs.python3.pkgs) torch;
+      inherit src stripRPath torch;
       extensionName = extConfig.name;
       extensionSources = extConfig.src;
       pySources = extConfig.pysrc;
-      kernels = buildKernels path pkgs;
+      kernels = buildKernels {inherit path pkgs torch; };
     };
 
   # Build a distributable Torch extension. In contrast to
-  # `buildTorchExtension`, this flavor has the rpath stripped, making it
+  # `buildTorchExtension` this flavor has the rpath stripped, making it
   # portable across Linux distributions. It also uses the build version
   # as the top-level directory.
   buildDistTorchExtension =
-    path: pkgs:
-    buildTorchExtension {
-      inherit path pkgs;
+    path: buildSet:
+    buildTorchExtension ({
+      inherit path;
       stripRPath = true;
-    };
+    } // buildSet);
 
   # Build multiple Torch extensions.
   buildNixTorchExtensions =
     let
-      torchVersions = map (pkgs: pkgs.python3.pkgs.torch) pkgsForBuildConfigs;
-      extensionForTorch = path: pkgs: {
-        name = torchBuildVersion pkgs;
-        value = buildTorchExtension path pkgs;
+      extensionForTorch = path: buildSet: {
+        name = torchBuildVersion buildSet;
+        value = buildTorchExtension ({ inherit path; } // buildSet);
       };
     in
-    path: builtins.listToAttrs (lib.map (extensionForTorch path) pkgsForBuildConfigs);
+    path: builtins.listToAttrs (lib.map (extensionForTorch path) buildSets);
 
   # Build multiple Torch extensions.
   buildDistTorchExtensions =
     let
-      extensionForTorch = path: pkgs: {
-        name = torchBuildVersion pkgs;
-        value = buildDistTorchExtension path pkgs;
+      extensionForTorch = path: buildSet: {
+        name = torchBuildVersion buildSet;
+        value = buildDistTorchExtension path buildSet;
       };
     in
-    path: builtins.listToAttrs (lib.map (extensionForTorch path) pkgsForBuildConfigs);
+    path: builtins.listToAttrs (lib.map (extensionForTorch path) buildSets);
 
   buildTorchExtensionBundle =
     path:
     let
       # We just need to get any nixpkgs for use by the path join.
-      pkgs = builtins.head pkgsForBuildConfigs;
+      pkgs = (builtins.head buildSets).pkgs;
       extensions = buildDistTorchExtensions path;
       namePaths = lib.mapAttrs (name: pkg: toString pkg) extensions;
     in
