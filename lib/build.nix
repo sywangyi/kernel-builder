@@ -15,6 +15,7 @@ let
   torchBuildVersion = import ./build-version.nix;
 in
 rec {
+  resolveDeps = import ./deps.nix { inherit lib; };
 
   readToml = path: builtins.fromTOML (builtins.readFile path);
 
@@ -41,10 +42,14 @@ rec {
       };
     in
     pkgs.callPackage ./kernel {
-      inherit src torch;
+      inherit src;
       kernelName = name;
       cudaCapabilities = buildConfig.capabilities;
       kernelSources = buildConfig.src;
+      kernelDeps = resolveDeps {
+        inherit pkgs torch;
+        deps = buildConfig.depends;
+      };
     };
 
   # Build all kernels defined in build.toml.
@@ -97,20 +102,6 @@ rec {
       kernels = buildKernels { inherit path pkgs torch; };
     };
 
-  # Build a distributable Torch extension. In contrast to
-  # `buildTorchExtension` this flavor has the rpath stripped, making it
-  # portable across Linux distributions. It also uses the build version
-  # as the top-level directory.
-  buildDistTorchExtension =
-    path: buildSet:
-    buildTorchExtension (
-      {
-        inherit path;
-        stripRPath = true;
-      }
-      // buildSet
-    );
-
   # Build multiple Torch extensions.
   buildNixTorchExtensions =
     let
@@ -126,7 +117,13 @@ rec {
     let
       extensionForTorch = path: buildSet: {
         name = torchBuildVersion buildSet;
-        value = buildDistTorchExtension path buildSet;
+        value = buildTorchExtension (
+          {
+            inherit path;
+            stripRPath = true;
+          }
+          // buildSet
+        );
       };
     in
     path: builtins.listToAttrs (lib.map (extensionForTorch path) buildSets);

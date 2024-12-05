@@ -30,7 +30,7 @@
         inherit (pkgs) lib;
 
         # Get versions.
-        inherit (pkgs.callPackage ./versions.nix {}) buildConfigs cudaVersions;
+        inherit (pkgs.callPackage ./versions.nix { }) buildConfigs cudaVersions;
 
         buildVersion = import ./lib/build-version.nix;
         flattenVersion = version: lib.replaceStrings [ "." ] [ "_" ] (lib.versions.pad 2 version);
