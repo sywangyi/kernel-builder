@@ -18,6 +18,23 @@ docker run --rm \
 # this will build the kernel and save the output in the `build` directory in the activation folder
 ```
 
+### Docker Arguments
+
+The kernel builder can be configured using the following arguments:
+
+| Argument   | Description                                                         | Default |
+| ---------- | ------------------------------------------------------------------- | ------- |
+| `MAX_JOBS` | The maximum number of parallel jobs to run during the build process | `4`     |
+| `CORES`    | The number of cores to use during the build process                 | `4`     |
+
+```bash
+docker run --rm \
+    -v $(pwd):/kernelcode \
+    -e MAX_JOBS=8 \
+    -e CORES=8 \
+    ghcr.io/huggingface/kernel-builder:latest
+```
+
 ## Final Output
 
 The whole goal of building these kernels is to allow researchers, developers, and programmers to use high performance kernels in their code PyTorch code. The final output of the kernel builder is a `.so` file that can be loaded in PyTorch using the `torch.ops.load_library` function.
