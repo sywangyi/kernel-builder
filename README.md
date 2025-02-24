@@ -41,7 +41,7 @@ docker run --rm \
 
 The whole goal of building these kernels is to allow researchers, developers, and programmers to use high performance kernels in their code PyTorch code. Kernels uploaded to Hugging Face Hub can be loaded using the [hf-kernels](https://github.com/huggingface/hf-kernels/) package.
 
-To load a kernel locally, you can should add the kernel build that is compatible with the Torch and CUDA versions in you environment to `PYTHON_PATH`. For example:
+To load a kernel locally, you can should add the kernel build that is compatible with the Torch and CUDA versions in you environment to `PYTHONPATH`. For example:
 
 ```bash
 # PyTorch 2.4 and CUDA 12.1.
