@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
 
 use eyre::{bail, Context, Result};
 use itertools::Itertools;
@@ -14,15 +15,18 @@ static CMAKE_UTILS: &str = include_str!("cmake/utils.cmake");
 static REGISTRATION_H: &str = include_str!("templates/registration.h");
 static HIPIFY: &str = include_str!("cmake/hipify.py");
 
-fn kernel_ops_identifier(name: &str) -> String {
-    let mut rng = rand::thread_rng();
-    let build_id: u64 = rng.gen();
-    let build_string = base32::encode(
-        base32::Alphabet::Rfc4648Lower { padding: false },
-        &build_id.to_le_bytes(),
-    );
+fn kernel_ops_identifier(name: &str, ops_id: Option<String>) -> String {
+    let identifier = ops_id.unwrap_or_else(|| {
+        // Generate a random string when no ops_id is provided
+        let mut rng = rand::thread_rng();
+        let build_id: u64 = rng.gen();
+        base32::encode(
+            base32::Alphabet::Rfc4648Lower { padding: false },
+            &build_id.to_le_bytes(),
+        )
+    });
 
-    format!("_{}_{}", name, build_string)
+    format!("_{}_{}", name, identifier)
 }
 
 pub fn write_torch_ext(
@@ -30,6 +34,7 @@ pub fn write_torch_ext(
     build: &Build,
     target_dir: PathBuf,
     force: bool,
+    ops_id: Option<String>,
 ) -> Result<()> {
     let torch_ext = match build.torch.as_ref() {
         Some(torch_ext) => torch_ext,
@@ -38,7 +43,7 @@ pub fn write_torch_ext(
 
     let mut file_set = FileSet::default();
 
-    let ops_name = kernel_ops_identifier(&build.general.name);
+    let ops_name = kernel_ops_identifier(&build.general.name, ops_id);
 
     write_cmake(
         env,
