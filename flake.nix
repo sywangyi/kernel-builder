@@ -60,7 +60,6 @@
                 shells = build.torchExtensionShells path;
               };
               packages = {
-                hash = build.getSourceHash path;
                 bundle = build.buildTorchExtensionBundle path;
                 redistributable = build.buildDistTorchExtensions path;
               };

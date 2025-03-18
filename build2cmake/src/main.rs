@@ -42,11 +42,6 @@ enum Commands {
         /// Force-overwrite existing files.
         #[arg(short, long)]
         force: bool,
-
-        /// This is an optional unique identifier that is suffixed to the
-        /// kernel name to avoid name collisions. (e.g. Git SHA)
-        #[arg(long)]
-        ops_id: Option<String>,
     },
 
     /// Validate the build.toml file.
@@ -63,18 +58,12 @@ fn main() -> Result<()> {
             build_toml,
             force,
             target_dir,
-            ops_id,
-        } => generate_torch(build_toml, target_dir, force, ops_id),
+        } => generate_torch(build_toml, target_dir, force),
         Commands::Validate { build_toml } => validate(build_toml),
     }
 }
 
-fn generate_torch(
-    build_toml: PathBuf,
-    target_dir: Option<PathBuf>,
-    force: bool,
-    ops_id: Option<String>,
-) -> Result<()> {
+fn generate_torch(build_toml: PathBuf, target_dir: Option<PathBuf>, force: bool) -> Result<()> {
     let target_dir = check_or_infer_target_dir(&build_toml, target_dir)?;
 
     let mut toml_data = String::new();
@@ -94,7 +83,7 @@ fn generate_torch(
         if torch_ext.universal {
             write_torch_universal_ext(&env, &build, target_dir, force)?;
         } else {
-            write_torch_ext(&env, &build, target_dir, force, ops_id)?;
+            write_torch_ext(&env, &build, target_dir, force)?;
         }
     } else {
         bail!("Build configuration does not have `torch` section");
