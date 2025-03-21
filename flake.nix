@@ -48,11 +48,12 @@
       #   standardized outputs (for all supported systems).
       lib = {
         genFlakeOutputs =
-          path:
+          { path, rev }:
           flake-utils.lib.eachSystem systems (
             system:
             let
               build = libPerSystem.${system};
+              revUnderscored = builtins.replaceStrings [ "-" ] [ "_" ] rev;
             in
             {
               devShells = rec {
@@ -60,8 +61,14 @@
                 shells = build.torchExtensionShells path;
               };
               packages = {
-                bundle = build.buildTorchExtensionBundle path;
-                redistributable = build.buildDistTorchExtensions path;
+                bundle = build.buildTorchExtensionBundle {
+                  inherit path;
+                  rev = revUnderscored;
+                };
+                redistributable = build.buildDistTorchExtensions {
+                  inherit path;
+                  rev = revUnderscored;
+                };
               };
             }
           );

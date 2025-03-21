@@ -58,6 +58,7 @@ rec {
     }:
     {
       path,
+      rev,
       stripRPath ? false,
       oldLinuxCompat ? false,
     }:
@@ -115,44 +116,49 @@ rec {
           stdenv
           stripRPath
           torch
+          rev
           ;
         extensionName = buildConfig.general.name;
       });
 
   # Build multiple Torch extensions.
   buildNixTorchExtensions =
-    path:
+    { path, rev }:
     let
-      extensionForTorch = path: buildSet: {
-        name = torchBuildVersion buildSet;
-        value = buildTorchExtension buildSet { inherit path; };
-      };
+      extensionForTorch =
+        { path, rev }:
+        buildSet: {
+          name = torchBuildVersion buildSet;
+          value = buildTorchExtension buildSet { inherit path rev; };
+        };
       filteredBuildSets = applicableBuildSets (readBuildConfig path) buildSets;
     in
-    builtins.listToAttrs (lib.map (extensionForTorch path) filteredBuildSets);
+    builtins.listToAttrs (lib.map (extensionForTorch { inherit path rev; }) filteredBuildSets);
 
   # Build multiple Torch extensions.
   buildDistTorchExtensions =
-    path:
+    { path, rev }:
     let
-      extensionForTorch = path: buildSet: {
-        name = torchBuildVersion buildSet;
-        value = buildTorchExtension buildSet {
-          inherit path;
-          stripRPath = true;
-          oldLinuxCompat = true;
+      extensionForTorch =
+        { path, rev }:
+        buildSet: {
+          name = torchBuildVersion buildSet;
+          value = buildTorchExtension buildSet {
+            inherit path rev;
+            stripRPath = true;
+            oldLinuxCompat = true;
+          };
         };
-      };
       filteredBuildSets = applicableBuildSets (readBuildConfig path) buildSets;
     in
-    builtins.listToAttrs (lib.map (extensionForTorch path) filteredBuildSets);
+    builtins.listToAttrs (lib.map (extensionForTorch { inherit path rev; }) filteredBuildSets);
 
   buildTorchExtensionBundle =
-    path:
+    { path, rev }:
     let
       # We just need to get any nixpkgs for use by the path join.
       pkgs = (builtins.head buildSets).pkgs;
-      extensions = buildDistTorchExtensions path;
+      extensions = buildDistTorchExtensions { inherit path rev; };
       buildConfig = readBuildConfig path;
       namePaths =
         if buildConfig.torch.universal or false then
@@ -169,27 +175,29 @@ rec {
   # Get a development shell with the extension in PYTHONPATH. Handy
   # for running tests.
   torchExtensionShells =
-    path:
+    { path, rev }:
     let
-      shellForBuildSet = path: buildSet: {
-        name = torchBuildVersion buildSet;
-        value =
-          with buildSet.pkgs;
-          mkShell {
-            buildInputs = [
-              (python3.withPackages (
-                ps: with ps; [
-                  buildSet.torch
-                  pytest
-                ]
-              ))
-            ];
-            shellHook = ''
-              export PYTHONPATH=${buildTorchExtension buildSet { inherit path; }}
-            '';
-          };
-      };
+      shellForBuildSet =
+        { path, rev }:
+        buildSet: {
+          name = torchBuildVersion buildSet;
+          value =
+            with buildSet.pkgs;
+            mkShell {
+              buildInputs = [
+                (python3.withPackages (
+                  ps: with ps; [
+                    buildSet.torch
+                    pytest
+                  ]
+                ))
+              ];
+              shellHook = ''
+                export PYTHONPATH=${buildTorchExtension buildSet { inherit path rev; }}
+              '';
+            };
+        };
       filteredBuildSets = applicableBuildSets (readBuildConfig path) buildSets;
     in
-    builtins.listToAttrs (lib.map (shellForBuildSet path) filteredBuildSets);
+    builtins.listToAttrs (lib.map (shellForBuildSet { inherit path rev; }) filteredBuildSets);
 }
