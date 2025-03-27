@@ -15,10 +15,47 @@ COPY . /etc/kernel-builder/
 
 ENV MAX_JOBS=${MAX_JOBS}
 ENV CORES=${CORES}
-ENTRYPOINT ["/bin/sh", "-c", "\
-    nix build --impure --max-jobs $MAX_JOBS -j $CORES --expr 'with import /etc/kernel-builder; lib.x86_64-linux.buildTorchExtensionBundle /kernelcode' -L && \
-    mkdir -p /kernelcode/build-output && \
-    cp -r --dereference ./result/* /kernelcode/build-output/ && \
-    chmod -R u+w /kernelcode/build-output && \
-    echo 'Build completed. Results copied to /kernelcode/build-output/'\
-"]
+
+RUN mkdir -p /etc/kernelcode && \
+    cat <<'EOF' > /etc/kernelcode/entry.sh
+#!/bin/sh
+echo "Building Torch Extension Bundle"
+
+# Check if kernelcode is a git repo and get hash if possible
+if [ -d "/kernelcode/.git" ]; then
+  # Mark git as safe to allow commands
+  git config --global --add safe.directory /kernelcode
+
+  # Try to get git revision
+  REV=$(git rev-parse --short=8 HEAD)
+  
+  # Check if working directory is dirty
+  if [ -n "$(git status --porcelain 2)" ]; then
+    REV="${REV}-dirty"
+  fi
+else
+  # Generate random material if not a git repo
+  REV=$(dd if=/dev/urandom status=none bs=1 count=10 2>/dev/null | base32 | tr '[:upper:]' '[:lower:]' | head -c 10)
+fi
+
+echo "Building with rev $REV"
+
+nix build \
+    --impure \
+    --max-jobs $MAX_JOBS \
+    -j $CORES \
+    --expr "with import /etc/kernel-builder; lib.x86_64-linux.buildTorchExtensionBundle { path = /kernelcode; rev = \"$REV\"; }" \
+    -L
+
+echo "Build completed. Copying results to /kernelcode/build-output/"
+
+mkdir -p /kernelcode/build-output
+cp -r --dereference ./result/* /kernelcode/build-output/
+chmod -R u+w /kernelcode/build-output
+
+echo 'Done'
+EOF
+
+RUN chmod +x /etc/kernelcode/entry.sh
+
+ENTRYPOINT ["/etc/kernelcode/entry.sh"]
