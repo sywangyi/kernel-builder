@@ -57,6 +57,7 @@
             let
               build = libPerSystem.${system};
               revUnderscored = builtins.replaceStrings [ "-" ] [ "_" ] rev;
+              pkgs = nixpkgs.legacyPackages.${system};
             in
             {
               devShells = rec {
@@ -75,6 +76,27 @@
                   inherit path;
                   rev = revUnderscored;
                 };
+                buildTree =
+                  let
+                    build2cmake = self.packages.${system}.build2cmake;
+                    src = build.mkSourceSet path;
+                  in
+                  pkgs.runCommand "torch-extension-build-tree"
+                    {
+                      nativeBuildInputs = [ build2cmake ];
+                      inherit src;
+                      meta = {
+                        description = "Build tree for torch extension with source files and CMake configuration";
+                      };
+                    }
+                    ''
+                      # Copy sources
+                      install -dm755 $out/src
+                      cp -r $src/. $out/src/
+
+                      # Generate cmake files
+                      build2cmake generate-torch --ops-id "${revUnderscored}" $src/build.toml $out --force
+                    '';
               };
             }
           );
