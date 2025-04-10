@@ -1,5 +1,8 @@
 # kernel-builder
 
+<img src="https://github.com/user-attachments/assets/85eb3d80-a163-4c67-a9d2-131b8cf4fe6f" width="500" height="500">
+
+
 This repo contains a Nix package that can be used to build custom machine learning kernels for PyTorch. The kernels are built using the [PyTorch C++ Frontend](https://pytorch.org/cppdocs/frontend.html) and can be loaded from the Hub with the [kernels](https://github.com/huggingface/kernels)
 Python package.
 
