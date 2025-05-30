@@ -1,52 +1,19 @@
 use std::collections::HashSet;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use eyre::{bail, Context, Result};
-use git2::Repository;
 use itertools::Itertools;
 use minijinja::{context, Environment};
-use rand::Rng;
 
+use super::kernel_ops_identifier;
 use crate::config::{Backend, Build, Dependencies, Kernel, Torch};
 use crate::FileSet;
 
-static CMAKE_UTILS: &str = include_str!("cmake/utils.cmake");
-static REGISTRATION_H: &str = include_str!("templates/registration.h");
-static HIPIFY: &str = include_str!("cmake/hipify.py");
-static CUDA_SUPPORTED_ARCHS_JSON: &str = include_str!("cuda_supported_archs.json");
-
-fn random_identifier() -> String {
-    // Generate a random string when no ops_id is provided
-    let mut rng = rand::thread_rng();
-    let build_id: u64 = rng.gen();
-    base32::encode(
-        base32::Alphabet::Rfc4648Lower { padding: false },
-        &build_id.to_le_bytes(),
-    )
-}
-
-fn git_identifier(target_dir: impl AsRef<Path>) -> Result<String> {
-    let repo = Repository::discover(target_dir.as_ref()).context("Cannot open git repository")?;
-    let head = repo.head()?;
-    let commit = head.peel_to_commit()?;
-    let rev = commit.tree_id().to_string().chars().take(7).collect();
-    let dirty = !repo.statuses(None)?.is_empty();
-    Ok(if dirty { format!("{rev}_dirty") } else { rev })
-}
-
-pub fn kernel_ops_identifier(
-    target_dir: impl AsRef<Path>,
-    name: &str,
-    ops_id: Option<String>,
-) -> String {
-    let identifier = ops_id.unwrap_or_else(|| match git_identifier(target_dir.as_ref()) {
-        Ok(rev) => rev,
-        Err(_) => random_identifier(),
-    });
-
-    format!("_{name}_{identifier}")
-}
+static CMAKE_UTILS: &str = include_str!("../templates/utils.cmake");
+static REGISTRATION_H: &str = include_str!("../templates/registration.h");
+static HIPIFY: &str = include_str!("../templates/cuda/hipify.py");
+static CUDA_SUPPORTED_ARCHS_JSON: &str = include_str!("../cuda_supported_archs.json");
 
 fn cuda_supported_archs() -> String {
     let supported_archs: Vec<String> = serde_json::from_str(CUDA_SUPPORTED_ARCHS_JSON)
@@ -56,6 +23,7 @@ fn cuda_supported_archs() -> String {
 
 pub fn write_torch_ext(
     env: &Environment,
+    backend: Backend,
     build: &Build,
     target_dir: PathBuf,
     force: bool,
@@ -72,6 +40,7 @@ pub fn write_torch_ext(
 
     write_cmake(
         env,
+        backend,
         build,
         torch_ext,
         &build.general.name,
@@ -131,7 +100,7 @@ fn write_setup_py(
 
     let data_globs = torch.data_globs().map(|globs| globs.join(", "));
 
-    env.get_template("setup.py")
+    env.get_template("cuda/setup.py")
         .wrap_err("Cannot get setup.py template")?
         .render_to_write(
             context! {
@@ -174,6 +143,7 @@ fn write_ops_py(
 
 fn write_cmake(
     env: &Environment,
+    backend: Backend,
     build: &Build,
     torch: &Torch,
     name: &str,
@@ -202,7 +172,11 @@ fn write_cmake(
 
     render_binding(env, torch, name, cmake_writer)?;
 
-    for (kernel_name, kernel) in &build.kernels {
+    for (kernel_name, kernel) in build
+        .kernels
+        .iter()
+        .filter(|(_, kernel)| kernel.backend == backend)
+    {
         render_kernel(env, kernel_name, kernel, cmake_writer)?;
     }
 
@@ -217,7 +191,7 @@ pub fn render_binding(
     name: &str,
     write: &mut impl Write,
 ) -> Result<()> {
-    env.get_template("torch-binding.cmake")
+    env.get_template("cuda/torch-binding.cmake")
         .wrap_err("Cannot get Torch binding template")?
         .render_to_write(
             context! {
@@ -243,7 +217,7 @@ fn render_deps(env: &Environment, build: &Build, write: &mut impl Write) -> Resu
     for dep in deps {
         match dep {
             Dependencies::Cutlass2_10 => {
-                env.get_template("dep-cutlass.cmake")
+                env.get_template("cuda/dep-cutlass.cmake")
                     .wrap_err("Cannot get CUTLASS dependency template")?
                     .render_to_write(
                         context! {
@@ -254,7 +228,7 @@ fn render_deps(env: &Environment, build: &Build, write: &mut impl Write) -> Resu
                     .wrap_err("Cannot render CUTLASS dependency template")?;
             }
             Dependencies::Cutlass3_5 => {
-                env.get_template("dep-cutlass.cmake")
+                env.get_template("cuda/dep-cutlass.cmake")
                     .wrap_err("Cannot get CUTLASS dependency template")?
                     .render_to_write(
                         context! {
@@ -265,7 +239,7 @@ fn render_deps(env: &Environment, build: &Build, write: &mut impl Write) -> Resu
                     .wrap_err("Cannot render CUTLASS dependency template")?;
             }
             Dependencies::Cutlass3_6 => {
-                env.get_template("dep-cutlass.cmake")
+                env.get_template("cuda/dep-cutlass.cmake")
                     .wrap_err("Cannot get CUTLASS dependency template")?
                     .render_to_write(
                         context! {
@@ -276,7 +250,7 @@ fn render_deps(env: &Environment, build: &Build, write: &mut impl Write) -> Resu
                     .wrap_err("Cannot render CUTLASS dependency template")?;
             }
             Dependencies::Cutlass3_8 => {
-                env.get_template("dep-cutlass.cmake")
+                env.get_template("cuda/dep-cutlass.cmake")
                     .wrap_err("Cannot get CUTLASS dependency template")?
                     .render_to_write(
                         context! {
@@ -308,7 +282,7 @@ pub fn render_kernel(
         .collect_vec()
         .join("\n");
 
-    env.get_template("kernel.cmake")
+    env.get_template("cuda/kernel.cmake")
         .wrap_err("Cannot get kernel template")?
         .render_to_write(
             context! {
@@ -329,7 +303,7 @@ pub fn render_kernel(
 }
 
 pub fn render_extension(env: &Environment, ops_name: &str, write: &mut impl Write) -> Result<()> {
-    env.get_template("torch-extension.cmake")
+    env.get_template("cuda/torch-extension.cmake")
         .wrap_err("Cannot get Torch extension template")?
         .render_to_write(
             context! {
@@ -345,7 +319,7 @@ pub fn render_extension(env: &Environment, ops_name: &str, write: &mut impl Writ
 }
 
 pub fn render_preamble(env: &Environment, name: &str, write: &mut impl Write) -> Result<()> {
-    env.get_template("preamble.cmake")
+    env.get_template("cuda/preamble.cmake")
         .wrap_err("Cannot get CMake prelude template")?
         .render_to_write(
             context! {
