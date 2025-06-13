@@ -12,6 +12,7 @@ use crate::{
 
 static CMAKE_UTILS: &str = include_str!("../templates/utils.cmake");
 static REGISTRATION_H: &str = include_str!("../templates/registration.h");
+static COMPILE_METAL_CMAKE: &str = include_str!("../templates/metal/compile-metal.cmake");
 
 pub fn write_torch_ext_metal(
     env: &Environment,
@@ -72,6 +73,13 @@ fn write_cmake(
         .entry(utils_path.clone())
         .extend_from_slice(CMAKE_UTILS.as_bytes());
 
+    let mut compile_metal_path = PathBuf::new();
+    compile_metal_path.push("cmake");
+    compile_metal_path.push("compile-metal.cmake");
+    file_set
+        .entry(compile_metal_path)
+        .extend_from_slice(COMPILE_METAL_CMAKE.as_bytes());
+
     let cmake_writer = file_set.entry("CMakeLists.txt");
 
     render_preamble(env, name, cmake_writer)?;
@@ -85,7 +93,7 @@ fn write_cmake(
         render_kernel(env, kernel_name, kernel, cmake_writer)?;
     }
 
-    render_extension(env, ops_name, cmake_writer)?;
+    render_extension(env, name, ops_name, cmake_writer)?;
 
     Ok(())
 }
@@ -113,11 +121,17 @@ fn render_binding(
     Ok(())
 }
 
-pub fn render_extension(env: &Environment, ops_name: &str, write: &mut impl Write) -> Result<()> {
+pub fn render_extension(
+    env: &Environment,
+    name: &str,
+    ops_name: &str,
+    write: &mut impl Write,
+) -> Result<()> {
     env.get_template("metal/torch-extension.cmake")
         .wrap_err("Cannot get Torch extension template")?
         .render_to_write(
             context! {
+                name => name,
                 ops_name => ops_name,
             },
             &mut *write,
