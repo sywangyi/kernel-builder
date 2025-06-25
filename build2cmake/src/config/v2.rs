@@ -90,18 +90,21 @@ pub enum Kernel {
     Cuda {
         cuda_capabilities: Option<Vec<String>>,
         cuda_flags: Option<Vec<String>>,
+        cxx_flags: Option<Vec<String>>,
         depends: Vec<Dependencies>,
         include: Option<Vec<String>>,
         src: Vec<String>,
     },
     #[serde(rename_all = "kebab-case")]
     Metal {
+        cxx_flags: Option<Vec<String>>,
         depends: Vec<Dependencies>,
         include: Option<Vec<String>>,
         src: Vec<String>,
     },
     #[serde(rename_all = "kebab-case")]
     Rocm {
+        cxx_flags: Option<Vec<String>>,
         depends: Vec<Dependencies>,
         rocm_archs: Option<Vec<String>>,
         include: Option<Vec<String>>,
@@ -110,11 +113,19 @@ pub enum Kernel {
 }
 
 impl Kernel {
+    pub fn cxx_flags(&self) -> Option<&[String]> {
+        match self {
+            Kernel::Cuda { cxx_flags, .. }
+            | Kernel::Metal { cxx_flags, .. }
+            | Kernel::Rocm { cxx_flags, .. } => cxx_flags.as_deref(),
+        }
+    }
+
     pub fn include(&self) -> Option<&[String]> {
         match self {
-            Kernel::Cuda { include, .. } => include.as_deref(),
-            Kernel::Metal { include, .. } => include.as_deref(),
-            Kernel::Rocm { include, .. } => include.as_deref(),
+            Kernel::Cuda { include, .. }
+            | Kernel::Metal { include, .. }
+            | Kernel::Rocm { include, .. } => include.as_deref(),
         }
     }
 
@@ -128,17 +139,15 @@ impl Kernel {
 
     pub fn depends(&self) -> &[Dependencies] {
         match self {
-            Kernel::Cuda { depends, .. } => depends,
-            Kernel::Metal { depends, .. } => depends,
-            Kernel::Rocm { depends, .. } => depends,
+            Kernel::Cuda { depends, .. }
+            | Kernel::Metal { depends, .. }
+            | Kernel::Rocm { depends, .. } => depends,
         }
     }
 
     pub fn src(&self) -> &[String] {
         match self {
-            Kernel::Cuda { src, .. } => src,
-            Kernel::Metal { src, .. } => src,
-            Kernel::Rocm { src, .. } => src,
+            Kernel::Cuda { src, .. } | Kernel::Metal { src, .. } | Kernel::Rocm { src, .. } => src,
         }
     }
 }
@@ -233,6 +242,7 @@ fn convert_kernels(v1_kernels: HashMap<String, v1::Kernel>) -> Result<HashMap<St
             kernels.insert(
                 format!("{name}_rocm"),
                 Kernel::Rocm {
+                    cxx_flags: None,
                     rocm_archs: kernel.rocm_archs,
                     depends: kernel.depends.clone(),
                     include: kernel.include.clone(),
@@ -246,6 +256,7 @@ fn convert_kernels(v1_kernels: HashMap<String, v1::Kernel>) -> Result<HashMap<St
             Kernel::Cuda {
                 cuda_capabilities: kernel.cuda_capabilities,
                 cuda_flags: None,
+                cxx_flags: None,
                 depends: kernel.depends,
                 include: kernel.include,
                 src: kernel.src,
