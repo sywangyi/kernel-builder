@@ -23,24 +23,34 @@
         x86_64-linux
       ];
 
-      # Create an attrset { "<system>" = [ <buildset> ...]; ... }.
-      buildSetPerSystem = builtins.listToAttrs (
-        builtins.map (system: {
-          name = system;
-          value = import ./lib/buildsets.nix {
-            inherit nixpkgs system;
-            hf-nix = hf-nix.overlays.default;
-          };
-        }) systems
-      );
+      torchVersions' = import ./versions.nix;
 
-      libPerSystem = builtins.mapAttrs (
-        system: buildSet:
-        import lib/build.nix {
-          inherit (nixpkgs) lib;
-          buildSets = buildSetPerSystem.${system};
-        }
-      ) buildSetPerSystem;
+      # Create an attrset { "<system>" = [ <buildset> ...]; ... }.
+      mkBuildSetsPerSystem =
+        torchVersions:
+        builtins.listToAttrs (
+          builtins.map (system: {
+            name = system;
+            value = import ./lib/build-sets.nix {
+              inherit nixpkgs system torchVersions;
+              hf-nix = hf-nix.overlays.default;
+            };
+          }) systems
+        );
+
+      defaultBuildSetsPerSystem = mkBuildSetsPerSystem torchVersions';
+
+      mkBuildPerSystem =
+        buildSetPerSystem:
+        builtins.mapAttrs (
+          system: buildSet:
+          import lib/build.nix {
+            inherit (nixpkgs) lib;
+            buildSets = buildSetPerSystem.${system};
+          }
+        ) buildSetPerSystem;
+
+      defaultBuildPerSystem = mkBuildPerSystem defaultBuildSetsPerSystem;
 
       # The lib output consists of two parts:
       #
@@ -50,9 +60,13 @@
       lib = {
         allBuildVariantsJSON =
           let
-            buildVariants = (import ./versions.nix { inherit (nixpkgs) lib; }).buildVariants;
+            buildVariants =
+              (import ./lib/build-variants.nix {
+                inherit (nixpkgs) lib;
+                torchVersions = torchVersions';
+              }).buildVariants;
           in
-          builtins.toJSON (nixpkgs.lib.foldl' (acc: system: acc // buildVariants system) { } systems);
+          builtins.toJSON buildVariants;
         genFlakeOutputs =
           {
             path,
@@ -60,11 +74,16 @@
 
             pythonCheckInputs ? pkgs: [ ],
             pythonNativeCheckInputs ? pkgs: [ ],
+            torchVersions ? torchVersions',
           }:
+          let
+            buildSetPerSystem' = mkBuildSetsPerSystem torchVersions;
+            buildPerSystem = mkBuildPerSystem buildSetPerSystem';
+          in
           flake-utils.lib.eachSystem systems (
             system:
             let
-              build = libPerSystem.${system};
+              build = buildPerSystem.${system};
               revUnderscored = builtins.replaceStrings [ "-" ] [ "_" ] rev;
               pkgs = nixpkgs.legacyPackages.${system};
               shellTorch =
@@ -91,7 +110,7 @@
                 };
                 redistributable = build.buildDistTorchExtensions {
                   inherit path;
-                  buildSets = buildSetPerSystem.${system};
+                  buildSets = buildSetPerSystem'.${system};
                   rev = revUnderscored;
                 };
                 buildTree =
@@ -118,8 +137,7 @@
               };
             }
           );
-      } // libPerSystem;
-
+      } // defaultBuildPerSystem;
     in
     flake-utils.lib.eachSystem systems (
       system:
@@ -132,7 +150,7 @@
 
         buildVersion = import ./lib/build-version.nix;
 
-        buildSets = buildSetPerSystem.${system};
+        buildSets = defaultBuildSetsPerSystem.${system};
 
       in
       rec {
