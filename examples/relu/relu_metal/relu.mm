@@ -2,44 +2,32 @@
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
-#include <string>
-#include <dlfcn.h>
-#include <mach-o/dyld.h>
+
+// Include the auto-generated header with embedded metallib
+#ifdef EMBEDDED_METALLIB_HEADER
+#include EMBEDDED_METALLIB_HEADER
+#else
+#error "EMBEDDED_METALLIB_HEADER not defined"
+#endif
 
 static inline id<MTLBuffer> getMTLBufferStorage(const torch::Tensor &tensor) {
   return __builtin_bit_cast(id<MTLBuffer>, tensor.storage().data());
 }
 
-static std::string getModuleDirectory() {
-  Dl_info dl_info;
-  if (dladdr((void*)getModuleDirectory, &dl_info)) {
-    std::string path(dl_info.dli_fname);
-    size_t pos = path.find_last_of('/');
-    if (pos != std::string::npos) {
-      return path.substr(0, pos);
-    }
-  }
-  return ".";
-}
 
 torch::Tensor &dispatchReluKernel(torch::Tensor const &input,
                                   torch::Tensor &output) {
   @autoreleasepool {
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-    NSError *error = nil;
 
     int numThreads = input.numel();
 
-    // Construct the full path to the metallib file
-    std::string moduleDir = getModuleDirectory();
-    std::string metallibPath = moduleDir + "/" + METALLIB_PATH;
-    
-    NSString *metallibPathStr = [NSString stringWithUTF8String:metallibPath.c_str()];
-    NSURL *metallibURL = [NSURL fileURLWithPath:metallibPathStr];
-    id<MTLLibrary> customKernelLibrary = [device newLibraryWithURL:metallibURL error:&error];
-    if (!customKernelLibrary) {
-      NSLog(@"[relu.mm] Failed to load pre-compiled Metal library at %@, will fall back to runtime compilation. Error: %@", metallibPathStr, error.localizedDescription);
-    }
+    // Load the embedded Metal library from memory
+    NSError *error = nil;
+    id<MTLLibrary> customKernelLibrary = EMBEDDED_METALLIB_NAMESPACE::createLibrary(device, &error);
+    TORCH_CHECK(customKernelLibrary,
+                "Failed to create Metal library from embedded data: ",
+                error.localizedDescription.UTF8String);
 
     std::string kernel_name =
         std::string("relu_forward_kernel_") +
@@ -94,7 +82,7 @@ torch::Tensor &dispatchReluKernel(torch::Tensor const &input,
   return output;
 }
 
-void relu(torch::Tensor &out, const torch::Tensor &input) {
+void relu(torch::Tensor &out, torch::Tensor const &input) {
   TORCH_CHECK(input.device().is_mps(), "input must be a MPS tensor");
   TORCH_CHECK(input.is_contiguous(), "input must be contiguous");
   TORCH_CHECK(input.scalar_type() == torch::kFloat ||
