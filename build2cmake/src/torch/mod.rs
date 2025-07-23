@@ -9,3 +9,6 @@ pub(crate) use ops_identifier::kernel_ops_identifier;
 
 mod universal;
 pub use universal::write_torch_ext_universal;
+
+mod xpu;
+pub use xpu::write_torch_ext_xpu;

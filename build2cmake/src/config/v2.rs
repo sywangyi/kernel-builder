@@ -35,6 +35,7 @@ impl Build {
                 Kernel::Cuda { .. } => Backend::Cuda,
                 Kernel::Metal { .. } => Backend::Metal,
                 Kernel::Rocm { .. } => Backend::Rocm,
+                Kernel::Xpu { .. } => Backend::Xpu,
             })
             .collect()
     }
@@ -111,6 +112,14 @@ pub enum Kernel {
         include: Option<Vec<String>>,
         src: Vec<String>,
     },
+    #[serde(rename_all = "kebab-case")]
+    Xpu {
+        cxx_flags: Option<Vec<String>>,
+        depends: Vec<Dependencies>,
+        sycl_flags: Option<Vec<String>>,
+        include: Option<Vec<String>>,
+        src: Vec<String>,
+    },
 }
 
 impl Kernel {
@@ -118,7 +127,8 @@ impl Kernel {
         match self {
             Kernel::Cuda { cxx_flags, .. }
             | Kernel::Metal { cxx_flags, .. }
-            | Kernel::Rocm { cxx_flags, .. } => cxx_flags.as_deref(),
+            | Kernel::Rocm { cxx_flags, .. }
+            | Kernel::Xpu { cxx_flags, .. } => cxx_flags.as_deref(),
         }
     }
 
@@ -126,7 +136,8 @@ impl Kernel {
         match self {
             Kernel::Cuda { include, .. }
             | Kernel::Metal { include, .. }
-            | Kernel::Rocm { include, .. } => include.as_deref(),
+            | Kernel::Rocm { include, .. }
+            | Kernel::Xpu { include, .. } => include.as_deref(),
         }
     }
 
@@ -135,6 +146,7 @@ impl Kernel {
             Kernel::Cuda { .. } => Backend::Cuda,
             Kernel::Metal { .. } => Backend::Metal,
             Kernel::Rocm { .. } => Backend::Rocm,
+            Kernel::Xpu { .. } => Backend::Xpu,
         }
     }
 
@@ -142,13 +154,17 @@ impl Kernel {
         match self {
             Kernel::Cuda { depends, .. }
             | Kernel::Metal { depends, .. }
-            | Kernel::Rocm { depends, .. } => depends,
+            | Kernel::Rocm { depends, .. }
+            | Kernel::Xpu { depends, .. } => depends,
         }
     }
 
     pub fn src(&self) -> &[String] {
         match self {
-            Kernel::Cuda { src, .. } | Kernel::Metal { src, .. } | Kernel::Rocm { src, .. } => src,
+            Kernel::Cuda { src, .. }
+            | Kernel::Metal { src, .. }
+            | Kernel::Rocm { src, .. }
+            | Kernel::Xpu { src, .. } => src,
         }
     }
 }
@@ -159,6 +175,7 @@ pub enum Backend {
     Cuda,
     Metal,
     Rocm,
+    Xpu,
 }
 
 impl Display for Backend {
@@ -167,6 +184,7 @@ impl Display for Backend {
             Backend::Cuda => write!(f, "cuda"),
             Backend::Metal => write!(f, "metal"),
             Backend::Rocm => write!(f, "rocm"),
+            Backend::Xpu => write!(f, "xpu"),
         }
     }
 }
@@ -179,6 +197,7 @@ impl FromStr for Backend {
             "cuda" => Ok(Backend::Cuda),
             "metal" => Ok(Backend::Metal),
             "rocm" => Ok(Backend::Rocm),
+            "xpu" => Ok(Backend::Xpu),
             _ => Err(format!("Unknown backend: {s}")),
         }
     }

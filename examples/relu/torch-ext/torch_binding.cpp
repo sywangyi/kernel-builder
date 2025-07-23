@@ -9,6 +9,8 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
   ops.impl("relu", torch::kCUDA, &relu);
 #elif defined(METAL_KERNEL)
   ops.impl("relu", torch::kMPS, relu);
+#elif defined(XPU_KERNEL)
+  ops.impl("relu", torch::kXPU, &relu);
 #endif
 }
 
