@@ -10,4 +10,5 @@
   isCuda = version: version ? cudaVersion;
   isMetal = version: version.metal or false;
   isRocm = version: version ? rocmVersion;
+  isXpu = version: version.xpu or false || version ? xpuVersion;
 }

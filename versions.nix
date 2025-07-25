@@ -107,4 +107,20 @@
       "aarch64-linux"
     ];
   }
+
+  # Intel XPU versions
+  {
+    torchVersion = "2.6";
+    xpu = true;
+    xpuVersion = "2024.2";
+    cxx11Abi = true;
+    systems = [ "x86_64-linux" ];
+  }
+  {
+    torchVersion = "2.7";
+    xpu = true;
+    xpuVersion = "2024.2";
+    cxx11Abi = true;
+    systems = [ "x86_64-linux" ];
+  }
 ]

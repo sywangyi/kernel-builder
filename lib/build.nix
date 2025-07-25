@@ -45,6 +45,7 @@ rec {
         cuda = false;
         metal = false;
         rocm = false;
+        xpu = false;
       };
     in
     lib.foldl (backends: kernel: backends // { ${kernelBackend kernel} = true; }) init kernels;

@@ -11,12 +11,14 @@
   config,
   cudaSupport ? config.cudaSupport,
   rocmSupport ? config.rocmSupport,
+  xpuSupport ? config.xpuSupport or false,
 
   lib,
   stdenv,
   cudaPackages,
   cmake,
   cmakeNvccThreadsHook,
+  cmakeSyclHook,
   ninja,
   build2cmake,
   get-kernel-check,
@@ -25,6 +27,7 @@
   rewrite-nix-paths-macho,
   rocmPackages,
   writeScriptBin,
+  inteloneapi-toolkit,
 
   apple-sdk_15,
   extraDeps ? [ ],
@@ -67,6 +70,8 @@ stdenv.mkDerivation (prevAttrs: {
         "cuda"
       else if rocmSupport then
         "rocm"
+      else if xpuSupport then
+        "xpu"
       else
         "metal"
     } --ops-id ${rev} build.toml
@@ -93,6 +98,10 @@ stdenv.mkDerivation (prevAttrs: {
     ]
     ++ lib.optionals rocmSupport [
       clr
+    ]
+    ++ lib.optionals xpuSupport [
+      cmakeSyclHook
+      inteloneapi-toolkit
     ]
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       rewrite-nix-paths-macho

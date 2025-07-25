@@ -27,6 +27,10 @@
     "rocm": [
       "torch26-cxx11-rocm62-x86_64-linux",
       "torch27-cxx11-rocm63-x86_64-linux"
+    ],
+    "xpu": [
+      "torch26-cxx11-xpu20242-x86_64-linux",
+      "torch27-cxx11-xpu20242-x86_64-linux"
     ]
   }
 }
