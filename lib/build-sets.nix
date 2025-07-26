@@ -129,6 +129,8 @@ let
     config = {
       allowUnfree = true;
       xpuSupport = true;
+      # Users can enable auto-installation by setting this to true
+      intelOneApiAutoInstall = true;
     };
     overlays = [
       hf-nix

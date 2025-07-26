@@ -15,6 +15,9 @@ final: prev: {
 
   stdenvGlibc_2_27 = prev.callPackage ./pkgs/stdenv-glibc-2_27 { };
 
-  # Intel oneAPI toolkit
-  inteloneapi-toolkit = prev.callPackage ./pkgs/inteloneapi-toolkit { };
+  # Intel oneAPI toolkit - supports both manual and automatic installation
+  inteloneapi-toolkit = prev.callPackage ./pkgs/inteloneapi-toolkit { 
+    # Auto-install can be enabled via config or override
+    autoInstall = final.config.intelOneApiAutoInstall or false;
+  };
 }
