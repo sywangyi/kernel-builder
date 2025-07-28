@@ -21,14 +21,28 @@ endforeach()
 {% endif %}
 
 # Add SYCL-specific compilation flags for XPU sources
+{% if sycl_flags %}
+# Use kernel-specific SYCL flags
 foreach(_KERNEL_SRC {{'${' + kernel_name + '_SRC}'}})
   if(_KERNEL_SRC MATCHES ".*\\.(cpp|cxx|cc)$")
     set_property(
       SOURCE ${_KERNEL_SRC}
       APPEND PROPERTY
-      COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CXX>:${SYCL_COMPILE_FLAGS}>"
+      COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CXX>:{{ sycl_flags }}>"
     )
   endif()
 endforeach()
+{% else %}
+# Use default SYCL flags
+foreach(_KERNEL_SRC {{'${' + kernel_name + '_SRC}'}})
+  if(_KERNEL_SRC MATCHES ".*\\.(cpp|cxx|cc)$")
+    set_property(
+      SOURCE ${_KERNEL_SRC}
+      APPEND PROPERTY
+      COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CXX>:${sycl_flags}>"
+    )
+  endif()
+endforeach()
+{% endif %}
 
 list(APPEND SRC {{'"${' + kernel_name + '_SRC}"'}})

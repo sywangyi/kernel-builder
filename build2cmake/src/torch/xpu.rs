@@ -249,11 +249,17 @@ pub fn render_kernel(
         .collect_vec()
         .join("\n");
 
+    let sycl_flags = match kernel {
+        Kernel::Xpu { sycl_flags, .. } => sycl_flags.as_deref(),
+        _ => unreachable!("Unsupported kernel type for XPU rendering"),
+    };
+
     env.get_template("xpu/kernel.cmake")
         .wrap_err("Cannot get kernel template")?
         .render_to_write(
             context! {
                 cxx_flags => kernel.cxx_flags().map(|flags| flags.join(";")),
+                sycl_flags => sycl_flags.map(|flags| flags.join(";")),
                 includes => kernel.include().map(prefix_and_join_includes),
                 kernel_name => kernel_name,
                 sources => sources,

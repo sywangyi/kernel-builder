@@ -40,20 +40,8 @@ set(GPU_LANG "SYCL")
 add_compile_definitions(XPU_KERNEL)
 add_compile_definitions(USE_XPU)
 
-# Find Intel oneAPI/SYCL compiler
-find_package(IntelSYCL QUIET)
-if(NOT IntelSYCL_FOUND)
-  # Try to find SYCL manually
-  find_program(ICPX_COMPILER icpx)
-  if(ICPX_COMPILER)
-    message(STATUS "Found Intel SYCL compiler: ${ICPX_COMPILER}")
-  else()
-    message(FATAL_ERROR "Intel SYCL compiler (icpx) not found. Please install Intel oneAPI toolkit.")
-  endif()
-endif()
-
 # Set SYCL-specific flags
 # Set comprehensive SYCL compilation and linking flags
-set(SYCL_LINK_FLAGS "-fsycl;--offload-compress;-fsycl-targets=spir64_gen,spir64;-Xs;-device pvc,xe-lpg,ats-m150 -options ' -cl-intel-enable-auto-large-GRF-mode -cl-poison-unsupported-fp64-kernels -cl-intel-greater-than-4GB-buffer-required'")
-set(SYCL_COMPILE_FLAGS "-fsycl;-fhonor-nans;-fhonor-infinities;-fno-associative-math;-fno-approx-func;-fno-sycl-instrument-device-code;--offload-compress;-fsycl-targets=spir64_gen,spir64;")
+set(sycl_link_flags "-fsycl;--offload-compress;-fsycl-targets=spir64_gen,spir64;-Xs;-device pvc,xe-lpg,ats-m150 -options ' -cl-intel-enable-auto-large-GRF-mode -cl-poison-unsupported-fp64-kernels -cl-intel-greater-than-4GB-buffer-required'")
+set(sycl_flags "-fsycl;-fhonor-nans;-fhonor-infinities;-fno-associative-math;-fno-approx-func;-fno-sycl-instrument-device-code;--offload-compress;-fsycl-targets=spir64_gen,spir64;")
 message(STATUS "Configuring for Intel XPU backend using SYCL")
