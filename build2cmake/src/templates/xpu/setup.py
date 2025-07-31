@@ -118,6 +118,6 @@ setup(
     package_data={"{{ name }}": [ {{ data_globs }} ]},
 {% endif %}
     zip_safe=False,
-    install_requires=[{{install_requires}}],
+    install_requires=["torch"],
     python_requires=">=3.9",
 )

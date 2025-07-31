@@ -39,7 +39,6 @@ pub fn write_torch_ext_xpu(
 
     write_setup_py(
         env,
-        build,
         torch_ext,
         &build.general.name,
         &ops_name,
@@ -48,7 +47,7 @@ pub fn write_torch_ext_xpu(
 
     write_ops_py(env, &build.general.name, &ops_name, &mut file_set)?;
 
-    write_pyproject_toml(env, build, &mut file_set)?;
+    write_pyproject_toml(env, &mut file_set)?;
 
     write_torch_registration_macros(&mut file_set)?;
 
@@ -66,28 +65,12 @@ fn write_torch_registration_macros(file_set: &mut FileSet) -> Result<()> {
     Ok(())
 }
 
-fn write_pyproject_toml(env: &Environment, build: &Build, file_set: &mut FileSet) -> Result<()> {
+fn write_pyproject_toml(env: &Environment, file_set: &mut FileSet) -> Result<()> {
     let writer = file_set.entry("pyproject.toml");
-
-    // Collect Python dependencies from kernels
-    let python_deps = vec!["torch".to_string()];
-    for kernel in build.kernels.values() {
-        for dep in kernel.depends() {
-            match dep {
-                _ => {} // Other dependencies are handled elsewhere
-            }
-        }
-    }
-    let build_requires = python_deps.iter().map(|dep| format!("\"{}\"", dep)).collect::<Vec<_>>().join(", ");
 
     env.get_template("pyproject.toml")
         .wrap_err("Cannot get pyproject.toml template")?
-        .render_to_write(
-            context! {
-                build_requires => build_requires,
-            },
-            writer,
-        )
+        .render_to_write(context! {}, writer)
         .wrap_err("Cannot render pyproject.toml template")?;
 
     Ok(())
@@ -95,7 +78,6 @@ fn write_pyproject_toml(env: &Environment, build: &Build, file_set: &mut FileSet
 
 fn write_setup_py(
     env: &Environment,
-    build: &Build,
     torch: &Torch,
     name: &str,
     ops_name: &str,
@@ -105,17 +87,6 @@ fn write_setup_py(
 
     let data_globs = torch.data_globs().map(|globs| globs.join(", "));
 
-    // Collect Python dependencies from kernels
-    let python_deps = vec!["torch".to_string()];
-    for kernel in build.kernels.values() {
-        for dep in kernel.depends() {
-            match dep {
-                _ => {} // Other dependencies are handled elsewhere
-            }
-        }
-    }
-    let install_requires = python_deps.iter().map(|dep| format!("\"{}\"", dep)).collect::<Vec<_>>().join(", ");
-
     env.get_template("xpu/setup.py")
         .wrap_err("Cannot get setup.py template")?
         .render_to_write(
@@ -124,7 +95,6 @@ fn write_setup_py(
                 ops_name => ops_name,
                 name => name,
                 version => "0.1.0",
-                install_requires => install_requires,
             },
             writer,
         )
@@ -166,15 +136,18 @@ fn write_cmake(
     ops_name: &str,
     file_set: &mut FileSet,
 ) -> Result<()> {
+    let mut utils_path = PathBuf::new();
+    utils_path.push("cmake");
+    utils_path.push("utils.cmake");
     file_set
-        .entry("cmake/utils.cmake")
+        .entry(utils_path.clone())
         .extend_from_slice(CMAKE_UTILS.as_bytes());
 
     let cmake_writer = file_set.entry("CMakeLists.txt");
 
     render_preamble(env, name, cmake_writer)?;
 
-    render_deps(env, build, cmake_writer)?;
+    render_deps(build, cmake_writer)?;
 
     render_binding(env, torch, name, cmake_writer)?;
 
@@ -214,7 +187,7 @@ fn render_binding(
     Ok(())
 }
 
-fn render_deps(env: &Environment, build: &Build, write: &mut impl Write) -> Result<()> {
+fn render_deps(build: &Build, write: &mut impl Write) -> Result<()> {
     let mut deps = HashSet::new();
 
     for kernel in build.kernels.values() {
@@ -226,7 +199,7 @@ fn render_deps(env: &Environment, build: &Build, write: &mut impl Write) -> Resu
             Dependencies::Torch => (),
             _ => {
                 // XPU doesn't support CUTLASS dependencies yet
-                eprintln!("Warning: XPU backend doesn't support dependency: {:?}", dep);
+                eprintln!("Warning: XPU backend doesn't support dependency: {dep:?}");
             }
         }
         write.write_all(b"\n")?;
@@ -312,7 +285,7 @@ where
     includes
         .as_ref()
         .iter()
-        .map(|inc| format!("csrc/{}", inc.as_ref()))
+        .map(|include| format!("${{CMAKE_SOURCE_DIR}}/{}", include.as_ref()))
         .collect_vec()
         .join(";")
 }

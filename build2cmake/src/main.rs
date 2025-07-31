@@ -9,7 +9,9 @@ use eyre::{bail, ensure, Context, Result};
 use minijinja::Environment;
 
 mod torch;
-use torch::{write_torch_ext_cuda, write_torch_ext_metal, write_torch_ext_universal, write_torch_ext_xpu};
+use torch::{
+    write_torch_ext_cuda, write_torch_ext_metal, write_torch_ext_universal, write_torch_ext_xpu,
+};
 
 mod config;
 use config::{Backend, Build, BuildCompat};
@@ -380,9 +382,7 @@ fn get_generated_files(
             Backend::Metal => {
                 write_torch_ext_metal(env, build, target_dir.clone(), ops_id.clone())?
             }
-            Backend::Xpu => {
-                write_torch_ext_xpu(env, build, target_dir.clone(), ops_id.clone())?
-            }
+            Backend::Xpu => write_torch_ext_xpu(env, build, target_dir.clone(), ops_id.clone())?,
         };
 
         all_set.extend(set);
