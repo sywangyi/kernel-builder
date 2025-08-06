@@ -31,13 +31,13 @@ let
     let
       withCuda = builtins.filter (torchVersion: torchVersion ? cudaVersion) torchVersions;
     in
-    builtins.map (torchVersion: torchVersion.cudaVersion) withCuda;
+    lib.unique (builtins.map (torchVersion: torchVersion.cudaVersion) withCuda);
 
   rocmVersions =
     let
       withRocm = builtins.filter (torchVersion: torchVersion ? rocmVersion) torchVersions;
     in
-    builtins.map (torchVersion: torchVersion.rocmVersion) withRocm;
+    lib.unique (builtins.map (torchVersion: torchVersion.rocmVersion) withRocm);
 
   flattenVersion = version: lib.replaceStrings [ "." ] [ "_" ] (lib.versions.pad 2 version);
 
@@ -59,7 +59,7 @@ let
       torchVersion,
       cxx11Abi,
       system,
-      upstreamVariant ? false,
+      bundleBuild ? false,
     }:
     let
       pkgs =
@@ -80,24 +80,12 @@ let
         buildConfig
         pkgs
         torch
-        upstreamVariant
+        bundleBuild
         ;
     };
 
   pkgsForMetal = import nixpkgs {
     inherit system;
-    overlays = [
-      hf-nix
-      overlay
-    ];
-  };
-
-  pkgsForRocm = import nixpkgs {
-    inherit system;
-    config = {
-      allowUnfree = true;
-      rocmSupport = true;
-    };
     overlays = [
       hf-nix
       overlay
