@@ -6,7 +6,6 @@
   system,
   wrapBintoolsWith,
   wrapCCWith,
-  writeClosure,
   gcc12Stdenv,
   stdenv,
   bintools-unwrapped,
@@ -33,11 +32,9 @@ let
 
     outputs = prevAttrs.outputs ++ [ "getent" ];
 
-    postInstall =
-      prevAttrs.postInstall
-      + ''
-        install -Dm755 $bin/bin/getent -t $getent/bin
-      '';
+    postInstall = prevAttrs.postInstall + ''
+      install -Dm755 $bin/bin/getent -t $getent/bin
+    '';
 
     passthru = prevAttrs.passthru // {
       # Should be stdenv's gcc, but we don't have access to it.
@@ -72,11 +69,5 @@ let
     in
     overrideCC stdenv compilerWrapped;
 
-  # Workaround for: https://github.com/NixOS/nixpkgs/issues/428546
-  ccWithoutHook = ((if cudaSupport then cudaPackages.backendStdenv else gcc12Stdenv).cc.cc).override {
-    # Just some null derivation to disable the hook.
-    sanitiseHeaderPathsHook = writeClosure [ ];
-  };
-
 in
-stdenvWith glibc_2_27 ccWithoutHook stdenv
+stdenvWith glibc_2_27 (if cudaSupport then cudaPackages.backendStdenv else gcc12Stdenv).cc.cc stdenv
