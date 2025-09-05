@@ -66,23 +66,24 @@ $ cmake -B build-ext
 $ cmake --build build-ext
 ```
 
-If you want to test the kernel as a Python package, you can make a virtual
-environment inside the shell:
+If you want to test the kernel as a Python package, you can do so.
+`nix develop` will automatically create a virtual environment in the
+`.venv` and activate it. You can install the kernel as a regular
+Python package in this virtual environment:
 
 ```bash
 $ nix develop
 $ build2cmake generate-torch build.toml
-$ python -m venv .venv
-$ source .venv/bin/activate
 $ pip install --no-build-isolation -e .
 ```
 
 Development shells are available for every build configuration. For
-instance, you can get a Torch 2.6 development shell for ROCm extensions
+instance, you can get a Torch 2.7 development shell for ROCm extensions
 using:
 
 ```bash
-$ nix develop .#devShells.torch26-cxx11-rocm62-x86_64-linux
+$ rm -rf .venv  # Remove existing venv if any.
+$ nix develop .#devShells.torch27-cxx11-rocm63-x86_64-linux
 ```
 
 ## Shell for testing a kernel
