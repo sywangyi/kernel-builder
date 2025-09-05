@@ -15,6 +15,7 @@ let
     isCuda
     isMetal
     isRocm
+    isXpu
     ;
 
   # All build configurations supported by Torch.
@@ -39,6 +40,12 @@ let
     in
     lib.unique (builtins.map (torchVersion: torchVersion.rocmVersion) withRocm);
 
+  xpuVersions =
+    let
+      withXpu = builtins.filter (torchVersion: torchVersion ? xpuVersion) torchVersions;
+    in
+    lib.unique (builtins.map (torchVersion: torchVersion.xpuVersion) withXpu);
+
   flattenVersion = version: lib.replaceStrings [ "." ] [ "_" ] (lib.versions.pad 2 version);
 
   # An overlay that overides CUDA to the given version.
@@ -50,12 +57,16 @@ let
     rocmPackages = super."rocmPackages_${flattenVersion rocmVersion}";
   };
 
+  overlayForXpuVersion = xpuVersion: self: super: {
+    xpuPackages = super."xpuPackages_${flattenVersion xpuVersion}";
+  };
   # Construct the nixpkgs package set for the given versions.
   pkgsForVersions =
     buildConfig@{
       cudaVersion ? null,
       metal ? false,
       rocmVersion ? null,
+      xpuVersion ? null,
       torchVersion,
       cxx11Abi,
       system,
@@ -69,11 +80,18 @@ let
           pkgsByRocmVer.${rocmVersion}
         else if isMetal buildConfig then
           pkgsForMetal
+        else if isXpu buildConfig then
+          pkgsByXpuVer.${xpuVersion}
         else
           throw "No compute framework set in Torch version";
-      torch = pkgs.python3.pkgs."torch_${flattenVersion torchVersion}".override {
-        inherit cxx11Abi;
-      };
+      torch = pkgs.python3.pkgs."torch_${flattenVersion torchVersion}".overrideAttrs (old: {
+        passthru = (old.passthru or { }) // {
+          xpuPackages = pkgs.xpuPackages or { };
+        };
+        cxx11Abi = cxx11Abi;
+        xpuSupport =
+          (pkgs ? xpuPackages) && ((builtins.length (builtins.attrNames pkgs.xpuPackages or { })) > 0);
+      });
     in
     {
       inherit
@@ -83,6 +101,26 @@ let
         bundleBuild
         ;
     };
+  pkgsForXpuVersions =
+    xpuVersions:
+    builtins.listToAttrs (
+      map (xpuVersion: {
+        name = xpuVersion;
+        value = import nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;
+            xpuSupport = true;
+          };
+          overlays = [
+            hf-nix
+            overlay
+            (overlayForXpuVersion xpuVersion)
+          ];
+        };
+      }) xpuVersions
+    );
+  pkgsByXpuVer = pkgsForXpuVersions xpuVersions;
 
   pkgsForMetal = import nixpkgs {
     inherit system;

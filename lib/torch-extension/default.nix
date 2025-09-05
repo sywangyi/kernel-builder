@@ -14,6 +14,7 @@
   config,
   cudaSupport ? config.cudaSupport,
   rocmSupport ? config.rocmSupport,
+  xpuSupport ? torch.xpuSupport,
 
   lib,
   stdenv,
@@ -70,6 +71,8 @@ stdenv.mkDerivation (prevAttrs: {
         "cuda"
       else if rocmSupport then
         "rocm"
+      else if xpuSupport then
+        "xpu"
       else
         "metal"
     } --ops-id ${rev} build.toml
@@ -98,6 +101,13 @@ stdenv.mkDerivation (prevAttrs: {
   ++ lib.optionals rocmSupport [
     clr
   ]
+  ++ lib.optionals xpuSupport (
+    with torch.passthru.xpuPackages;
+    [
+      ocloc
+      oneapi-torch-dev
+    ]
+  )
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     rewrite-nix-paths-macho
   ];
@@ -110,9 +120,6 @@ stdenv.mkDerivation (prevAttrs: {
     with cudaPackages;
     [
       cuda_cudart
-
-      # Make dependent on build configuration dependencies once
-      # the Torch dependency is gone.
       cuda_cccl
       libcublas
       libcusolver
@@ -120,6 +127,12 @@ stdenv.mkDerivation (prevAttrs: {
     ]
   )
   ++ lib.optionals rocmSupport (with rocmPackages; [ hipsparselt ])
+  ++ lib.optionals xpuSupport (
+    with torch.passthru.xpuPackages;
+    [
+      oneapi-torch-dev
+    ]
+  )
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     apple-sdk_15
   ]
@@ -148,13 +161,17 @@ stdenv.mkDerivation (prevAttrs: {
     (lib.cmakeFeature "CMAKE_CUDA_HOST_COMPILER" "${stdenv.cc}/bin/g++")
   ]
   ++ lib.optionals rocmSupport [
-    # Ensure sure that we use HIP from our CLR override and not HIP from
-    # the symlink-joined ROCm toolkit.
     (lib.cmakeFeature "CMAKE_HIP_COMPILER_ROCM_ROOT" "${clr}")
     (lib.cmakeFeature "HIP_ROOT_DIR" "${clr}")
   ]
+  ++ lib.optionals xpuSupport (
+    with torch.passthru.xpuPackages;
+    [
+      (lib.cmakeFeature "SYCL_ROOT" "${oneapi-torch-dev}")
+      (lib.cmakeFeature "MKLROOT" "${oneapi-torch-dev}")
+    ]
+  )
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
-    # Use host compiler for Metal. Not included in the redistributable SDK.
     (lib.cmakeFeature "METAL_COMPILER" "${xcrunHost}/bin/xcrunHost")
   ];
 

@@ -16,7 +16,12 @@ let
   supportedCudaCapabilities = builtins.fromJSON (
     builtins.readFile ../build2cmake/src/cuda_supported_archs.json
   );
-  inherit (import ./torch-version-utils.nix { inherit lib; }) isCuda isMetal isRocm;
+  inherit (import ./torch-version-utils.nix { inherit lib; })
+    isCuda
+    isMetal
+    isRocm
+    isXpu
+    ;
 in
 rec {
   resolveDeps = import ./deps.nix { inherit lib; };
@@ -45,11 +50,13 @@ rec {
         cuda = false;
         metal = false;
         rocm = false;
+        xpu = false;
       };
     in
     lib.foldl (backends: kernel: backends // { ${kernelBackend kernel} = true; }) init kernels;
 
   readBuildConfig = path: validateBuildConfig (readToml (path + "/build.toml"));
+  tracedReadBuildConfig = path: readBuildConfig path;
 
   srcFilter =
     src: name: type:
@@ -75,6 +82,7 @@ rec {
             (isCuda buildSet.buildConfig && backends'.cuda)
             || (isRocm buildSet.buildConfig && backends'.rocm)
             || (isMetal buildSet.buildConfig && backends'.metal)
+            || (isXpu buildSet.buildConfig && backends'.xpu)
             || (buildConfig.general.universal or false);
           cudaVersionSupported =
             !(isCuda buildSet.buildConfig)
@@ -123,6 +131,8 @@ rec {
           pkgs.stdenv
         else if oldLinuxCompat then
           pkgs.stdenvGlibc_2_27
+        else if isXpu buildConfig then
+          pkgs.stdenv
         else
           pkgs.cudaPackages.backendStdenv;
     in
@@ -163,7 +173,7 @@ rec {
           name = torchBuildVersion buildSet;
           value = buildTorchExtension buildSet { inherit path rev; };
         };
-      filteredBuildSets = applicableBuildSets (readBuildConfig path) buildSets;
+      filteredBuildSets = applicableBuildSets (tracedReadBuildConfig path) buildSets;
     in
     builtins.listToAttrs (lib.map (extensionForTorch { inherit path rev; }) filteredBuildSets);
 
@@ -186,7 +196,7 @@ rec {
             oldLinuxCompat = true;
           };
         };
-      filteredBuildSets = applicableBuildSets (readBuildConfig path) buildSets;
+      filteredBuildSets = applicableBuildSets (tracedReadBuildConfig path) buildSets;
     in
     builtins.listToAttrs (lib.map (extensionForTorch { inherit path rev; }) filteredBuildSets);
 
@@ -204,7 +214,7 @@ rec {
         inherit path rev doGetKernelCheck;
         buildSets = bundleBuildSets;
       };
-      buildConfig = readBuildConfig path;
+      buildConfig = tracedReadBuildConfig path;
       namePaths =
         if buildConfig.general.universal then
           # Noarch, just get the first extension.
@@ -234,7 +244,13 @@ rec {
         let
           pkgs = buildSet.pkgs;
           rocmSupport = pkgs.config.rocmSupport or false;
-          stdenv = if rocmSupport then pkgs.stdenv else pkgs.cudaPackages.backendStdenv;
+          stdenv =
+            if rocmSupport then
+              pkgs.stdenv
+            else if isXpu buildSet.buildConfig then
+              pkgs.stdenv
+            else
+              pkgs.cudaPackages.backendStdenv;
           mkShell = pkgs.mkShell.override { inherit stdenv; };
         in
         {
@@ -274,7 +290,14 @@ rec {
         let
           pkgs = buildSet.pkgs;
           rocmSupport = pkgs.config.rocmSupport or false;
-          stdenv = if rocmSupport then pkgs.stdenv else pkgs.cudaPackages.backendStdenv;
+          xpuSupport = pkgs.config.xpuSupport or false;
+          stdenv =
+            if rocmSupport then
+              pkgs.stdenv
+            else if xpuSupport then
+              pkgs.stdenv
+            else
+              pkgs.cudaPackages.backendStdenv;
           mkShell = pkgs.mkShell.override { inherit stdenv; };
         in
         {
