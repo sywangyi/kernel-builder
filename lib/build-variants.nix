@@ -5,6 +5,7 @@ let
     isCuda
     isMetal
     isRocm
+    isXpu
     ;
 in
 rec {
@@ -16,8 +17,10 @@ rec {
       "metal"
     else if buildConfig ? "rocmVersion" then
       "rocm"
+    else if buildConfig ? xpuVersion then
+      "xpu"
     else
-      throw "Could not find compute framework: no CUDA or ROCm version specified and Metal is not enabled";
+      throw "Could not find compute framework: no CUDA, ROCm, XPU version specified and Metal is not enabled";
 
   # Build variants included in bundle builds.
   buildVariants =
@@ -31,6 +34,8 @@ rec {
           "rocm${flattenVersion (lib.versions.majorMinor version.rocmVersion)}"
         else if isMetal version then
           "metal"
+        else if isXpu version then
+          "xpu${flattenVersion (lib.versions.majorMinor version.xpuVersion)}"
         else
           throw "No compute framework set in Torch version";
       buildName =

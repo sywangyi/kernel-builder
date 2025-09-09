@@ -1,4 +1,5 @@
 {
+  pkgs,
   extensionName,
   nvccThreads,
   rev,
@@ -14,6 +15,7 @@
   config,
   cudaSupport ? config.cudaSupport,
   rocmSupport ? config.rocmSupport,
+  xpuSupport ? (config.xpuSupport or false),
 
   lib,
   stdenv,
@@ -70,6 +72,8 @@ stdenv.mkDerivation (prevAttrs: {
         "cuda"
       else if rocmSupport then
         "rocm"
+      else if xpuSupport then
+        "xpu"
       else
         "metal"
     } --ops-id ${rev} build.toml
@@ -98,6 +102,13 @@ stdenv.mkDerivation (prevAttrs: {
   ++ lib.optionals rocmSupport [
     clr
   ]
+  ++ lib.optionals xpuSupport (
+    with pkgs.xpuPackages;
+    [
+      ocloc
+      oneapi-torch-dev
+    ]
+  )
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     rewrite-nix-paths-macho
   ];
@@ -120,6 +131,12 @@ stdenv.mkDerivation (prevAttrs: {
     ]
   )
   ++ lib.optionals rocmSupport (with rocmPackages; [ hipsparselt ])
+  ++ lib.optionals xpuSupport (
+    with pkgs.xpuPackages;
+    [
+      oneapi-torch-dev
+    ]
+  )
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     apple-sdk_15
   ]
@@ -136,6 +153,10 @@ stdenv.mkDerivation (prevAttrs: {
     }
     // lib.optionalAttrs rocmSupport {
       PYTORCH_ROCM_ARCH = lib.concatStringsSep ";" torch.rocmArchs;
+    }
+    // lib.optionalAttrs xpuSupport {
+      MKLROOT = pkgs.xpuPackages.oneapi-torch-dev;
+      SYCL_ROOT = pkgs.xpuPackages.oneapi-torch-dev;
     };
 
   # If we use the default setup, CMAKE_CUDA_HOST_COMPILER gets set to nixpkgs g++.

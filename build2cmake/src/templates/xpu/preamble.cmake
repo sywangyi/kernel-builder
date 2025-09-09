@@ -33,7 +33,7 @@ endif()
 
 # Check for Intel XPU support in PyTorch
 run_python(XPU_AVAILABLE
-  "import torch; print('true' if hasattr(torch, 'xpu') and torch.xpu.is_available() else 'false')"
+  "import torch; print('true' if hasattr(torch, 'xpu') else 'false')"
   "Failed to check XPU availability")
 
 if(NOT XPU_AVAILABLE STREQUAL "true")

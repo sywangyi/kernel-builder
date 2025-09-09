@@ -42,6 +42,20 @@
 
   {
     torchVersion = "2.7";
+    xpuVersion = "2025.0.2";
+    cxx11Abi = true;
+    systems = [ "x86_64-linux" ];
+    bundleBuild = true;
+  }
+  {
+    torchVersion = "2.8";
+    xpuVersion = "2025.1.3";
+    cxx11Abi = true;
+    systems = [ "x86_64-linux" ];
+    bundleBuild = true;
+  }
+  {
+    torchVersion = "2.7";
     cxx11Abi = true;
     metal = true;
     systems = [ "aarch64-darwin" ];
