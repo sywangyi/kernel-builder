@@ -15,3 +15,12 @@ depends = [
     "cutlass_3_6",
 ]
 src = ["gemm.cu"]
+
+[kernel.gemm_xpu]
+backend = "xpu"
+depends = [
+    "torch",
+    "cutlass_sycl",
+]
+src = ["gemm_sycl.cpp"]
+

@@ -196,16 +196,19 @@ fn render_deps(env: &Environment, build: &Build, write: &mut impl Write) -> Resu
 
     for dep in deps {
         match dep {
-            Dependencies::CutlassSycl3_9 => {
-                env.get_template("xpu/dep-cutlass-sycl.cmake")
-                    .wrap_err("Cannot get CUTLASS-SYCL dependency template")?
+            Dependencies::CutlassSycl => {
+                use std::env;
+                let dpcpp_version = env::var("DPCPP_VERSION").unwrap_or("2025.1".to_string());
+                let version = match dpcpp_version.as_str() {
+                    "2025.0" => "3.9-0.2",
+                    "2025.1" => "3.9-0.3",
+                    _ => bail!("No cutlass_sycl version mapped for DPCPP_VERSION {}", dpcpp_version),
+                };
+                env.get_template("xpu/dep-cutlass-sycl.cmake")?
                     .render_to_write(
-                        context! {
-                            version => "3.9-0.3",
-                        },
+                        context! { version => version },
                         &mut *write,
-                    )
-                    .wrap_err("Cannot render CUTLASS-SYCL dependency template")?;
+                    )?;
             }
             Dependencies::Torch => (),
             _ => {
