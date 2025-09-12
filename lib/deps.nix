@@ -29,7 +29,7 @@ let
       torch
       torch.cxxdev
     ];
-    "cutlass_sycl" = [ torch.xpuPackages.cutlass_sycl ];
+    "cutlass_sycl" = [ torch.xpuPackages.cutlass-sycl ];
   };
 in
 let
