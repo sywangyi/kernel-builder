@@ -25,15 +25,12 @@ let
     "cutlass_3_9" = [
       pkgs.cutlass_3_9
     ];
-    "cutlass_sycl_3_9" = [
-      pkgs.cutlass_sycl_3_9
-    ];
     "torch" = [
       torch
       torch.cxxdev
     ];
+    "cutlass_sycl" = [ torch.xpuPackages.cutlass-sycl ];
   };
-
 in
 let
   depToPkg =

@@ -34,18 +34,13 @@ if (NOT CutlassSycl_FOUND)
 
   # Set Intel backend env
   message(STATUS "Setting Intel GPU optimization env vars for Cutlass-SYCL")
-  string(REPLACE "-fsycl-targets=spir64_gen,spir64" "-fsycl-targets=intel_gpu_pvc" sycl_link_flags "${sycl_link_flags}")
-  string(REPLACE "-device pvc,xe-lpg,ats-m150" "" sycl_link_flags "${sycl_link_flags}")
-  string(APPEND sycl_link_flags "-Xspirv-translator;-spirv-ext=+SPV_INTEL_split_barrier;")
-  string(REPLACE "-fsycl-targets=spir64_gen,spir64" "-fsycl-targets=intel_gpu_pvc" sycl_flags "${sycl_flags}")
-
   set(CUTLASS_ENABLE_SYCL ON CACHE BOOL "Enable SYCL for CUTLASS")
   add_compile_definitions(CUTLASS_ENABLE_SYCL=1)
   set(DPCPP_SYCL_TARGET "intel_gpu_pvc" CACHE STRING "SYCL target for Intel GPU")
   add_compile_definitions(DPCPP_SYCL_TARGET=intel_gpu_pvc)
   set(SYCL_INTEL_TARGET ON CACHE BOOL "Enable SYCL for INTEL")
   add_compile_definitions(SYCL_INTEL_TARGET=1)
-  
+
   set(ENV{SYCL_PROGRAM_COMPILE_OPTIONS} "-ze-opt-large-register-file")
   set(ENV{IGC_VISAOptions} "-perfmodel")
   set(ENV{IGC_VectorAliasBBThreshold} "10000")
@@ -56,5 +51,11 @@ if (NOT CutlassSycl_FOUND)
   include_directories(${CUTLASS_INCLUDE_DIR})
   include_directories(${CUTLASS_TOOLS_UTIL_INCLUDE_DIR})
 else()
-  message(STATUS "Using system cutlass with version: ${CutlassSycl_VERSION}")
+  include_directories(${CUTLASS_INCLUDE_DIR})
+  include_directories(${CUTLASS_TOOLS_UTIL_INCLUDE_DIR})
 endif(NOT CutlassSycl_FOUND)
+string(REPLACE "-fsycl-targets=spir64_gen,spir64" "-fsycl-targets=intel_gpu_pvc" sycl_link_flags "${sycl_link_flags}")
+string(REPLACE "-device pvc,xe-lpg,ats-m150" "" sycl_link_flags "${sycl_link_flags}")
+string(APPEND sycl_link_flags "-Xspirv-translator;-spirv-ext=+SPV_INTEL_split_barrier;")
+string(REPLACE "-fsycl-targets=spir64_gen,spir64" "-fsycl-targets=intel_gpu_pvc" sycl_flags "${sycl_flags}")
+
