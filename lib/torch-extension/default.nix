@@ -52,6 +52,7 @@ let
   );
 
   oneapi-torch-dev = xpuPackages.oneapi-torch-dev.override { inherit stdenv; };
+  onednn-xpu = xpuPackages.onednn-xpu.override { inherit stdenv oneapi-torch-dev; };
 
   # On Darwin, we need the host's xcrun for `xcrun metal` to compile Metal shaders.
   # t's not supported by the nixpkgs shim.
@@ -132,7 +133,7 @@ stdenv.mkDerivation (prevAttrs: {
   ++ lib.optionals rocmSupport (with rocmPackages; [ hipsparselt ])
   ++ lib.optionals xpuSupport ([
     oneapi-torch-dev
-    xpuPackages.onednn-xpu
+    onednn-xpu
   ])
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     apple-sdk_15
@@ -171,6 +172,9 @@ stdenv.mkDerivation (prevAttrs: {
     # the symlink-joined ROCm toolkit.
     (lib.cmakeFeature "CMAKE_HIP_COMPILER_ROCM_ROOT" "${clr}")
     (lib.cmakeFeature "HIP_ROOT_DIR" "${clr}")
+  ]
+  ++ lib.optionals xpuSupport [
+    (lib.cmakeFeature "ONEDNN_XPU_INCLUDE_DIR" "${onednn-xpu}/include")
   ]
   ++ lib.optionals stdenv.hostPlatform.isDarwin [
     # Use host compiler for Metal. Not included in the redistributable SDK.
