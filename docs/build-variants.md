@@ -9,11 +9,15 @@ available. This list will be updated as new PyTorch versions are released.
 
 - `torch27-metal-aarch64-darwin`
 - `torch28-metal-aarch64-darwin`
+- `torch29-metal-aarch64-darwin`
 
 ## CUDA aarch64-linux
 
 - `torch27-cxx11-cu128-aarch64-linux`
 - `torch28-cxx11-cu129-aarch64-linux`
+- `torch29-cxx11-cu126-aarch64-linux`
+- `torch29-cxx11-cu128-aarch64-linux`
+- `torch29-cxx11-cu130-aarch64-linux`
 
 ## CUDA x86_64-linux
 
@@ -23,17 +27,23 @@ available. This list will be updated as new PyTorch versions are released.
 - `torch28-cxx11-cu126-x86_64-linux`
 - `torch28-cxx11-cu128-x86_64-linux`
 - `torch28-cxx11-cu129-x86_64-linux`
+- `torch29-cxx11-cu126-x86_64-linux`
+- `torch29-cxx11-cu128-x86_64-linux`
+- `torch29-cxx11-cu130-x86_64-linux`
 
 ## ROCm x86_64-linux
 
 - `torch27-cxx11-rocm63-x86_64-linux`
 - `torch28-cxx11-rocm63-x86_64-linux`
 - `torch28-cxx11-rocm64-x86_64-linux`
+- `torch29-cxx11-rocm63-x86_64-linux`
+- `torch29-cxx11-rocm64-x86_64-linux`
 
 ## XPU x86_64-linux
 
 - `torch27-cxx11-xpu20250-x86_64-linux`
 - `torch28-cxx11-xpu20251-x86_64-linux`
+- `torch29-cxx11-xpu20252-x86_64-linux`
 
 ## Universal
 
