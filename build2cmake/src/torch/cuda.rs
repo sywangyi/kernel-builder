@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::env;
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -12,6 +13,7 @@ use crate::version::Version;
 use crate::FileSet;
 
 static CMAKE_UTILS: &str = include_str!("../templates/utils.cmake");
+static WINDOWS_UTILS: &str = include_str!("../templates/windows.cmake");
 static REGISTRATION_H: &str = include_str!("../templates/registration.h");
 static HIPIFY: &str = include_str!("../templates/cuda/hipify.py");
 static CUDA_SUPPORTED_ARCHS_JSON: &str = include_str!("../cuda_supported_archs.json");
@@ -155,6 +157,13 @@ fn write_cmake(
         .entry(utils_path.clone())
         .extend_from_slice(CMAKE_UTILS.as_bytes());
 
+    let mut windows_utils_path = PathBuf::new();
+    windows_utils_path.push("cmake");
+    windows_utils_path.push("windows.cmake");
+    file_set
+        .entry(windows_utils_path.clone())
+        .extend_from_slice(WINDOWS_UTILS.as_bytes());
+
     let mut hipify_path = PathBuf::new();
     hipify_path.push("cmake");
     hipify_path.push("hipify.py");
@@ -184,7 +193,7 @@ fn write_cmake(
         render_kernel(env, kernel_name, kernel, cmake_writer)?;
     }
 
-    render_extension(env, ops_name, cmake_writer)?;
+    render_extension(env, name, ops_name, cmake_writer)?;
 
     Ok(())
 }
@@ -351,11 +360,17 @@ pub fn render_kernel(
     Ok(())
 }
 
-pub fn render_extension(env: &Environment, ops_name: &str, write: &mut impl Write) -> Result<()> {
+pub fn render_extension(
+    env: &Environment,
+    name: &str,
+    ops_name: &str,
+    write: &mut impl Write,
+) -> Result<()> {
     env.get_template("cuda/torch-extension.cmake")
         .wrap_err("Cannot get Torch extension template")?
         .render_to_write(
             context! {
+                name => name,
                 ops_name => ops_name,
             },
             &mut *write,
@@ -382,7 +397,7 @@ pub fn render_preamble(
                 cuda_minver => cuda_minver.map(|v| v.to_string()),
                 cuda_maxver => cuda_maxver.map(|v| v.to_string()),
                 cuda_supported_archs => cuda_supported_archs(),
-
+                platform => env::consts::OS
             },
             &mut *write,
         )

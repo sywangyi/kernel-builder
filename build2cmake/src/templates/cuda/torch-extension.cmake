@@ -9,5 +9,17 @@ define_gpu_extension_target(
   USE_SABI 3
   WITH_SOABI)
 
-target_link_options({{ ops_name }} PRIVATE -static-libstdc++)
+if( NOT MSVC)
+    target_link_options({{ ops_name }} PRIVATE -static-libstdc++)
+endif()
 
+{% if platform == 'windows' %}
+# These methods below should be included from preamble.cmake on windows platform.
+
+# Add kernels_install target for huggingface/kernels library layout
+add_kernels_install_target({{ ops_name }} "{{ name }}" "${BUILD_VARIANT_NAME}")
+
+# Add local_install target for local development with get_local_kernel()
+add_local_install_target({{ ops_name }} "{{ name }}" "${BUILD_VARIANT_NAME}")
+
+{% endif %}
