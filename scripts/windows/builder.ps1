@@ -365,7 +365,9 @@ function Invoke-CMakeTarget {
     )
 
     Write-Status "Running $DisplayName..." -Type Info
-    cmake --build . --target $Target --config $BuildConfig
+
+    # Use cmake --build with proper escaping for Visual Studio generator
+    cmake --build . --config $BuildConfig --target $Target
 
     if ($LASTEXITCODE -ne 0) {
         throw "$DisplayName failed with exit code $LASTEXITCODE"
@@ -418,13 +420,13 @@ function Invoke-CMakeBuild {
 
         Write-Status "Build completed successfully!" -Type Success
 
-        # Run install targets if requested
+        # Run install target if requested
         if ($RunLocalInstall) {
-            Invoke-CMakeTarget -Target 'local_install' -BuildConfig $BuildConfig -DisplayName 'install target (local development layout)'
+            Invoke-CMakeTarget -Target 'INSTALL' -BuildConfig $BuildConfig -DisplayName 'install target (local development layout)'
         }
 
         if ($RunKernelsInstall) {
-            Invoke-CMakeTarget -Target 'kernels_install' -BuildConfig $BuildConfig -DisplayName 'kernels_install target'
+            Invoke-CMakeTarget -Target 'INSTALL' -BuildConfig $BuildConfig -DisplayName 'install target'
         }
     }
     finally {
