@@ -64,14 +64,12 @@ RUN uv add numpy pytest
 
 # Copy kernels and tests
 COPY relu-kernel ./relu-kernel
+COPY relu-kernel-cpu ./relu-kernel-cpu
 COPY cutlass-gemm-kernel ./cutlass-gemm-kernel
 COPY silu-and-mul-universal-kernel ./silu-and-mul-universal-kernel
 COPY examples/relu/tests ./relu_tests
-COPY examples/cutlass-gemm/tests ./tests/cutlass_gemm_tests
+COPY examples/cutlass-gemm/tests ./cutlass_gemm_tests
 
 # Run tests
-ENV PYTHONPATH="relu-kernel:cutlass-gemm-kernel:silu-and-mul-universal-kernel:$PYTHONPATH"
-CMD ["/bin/sh", "-c", ".venv/bin/pytest", "relu_tests", "cutlass_gemm_tests"] 
-
-# We only care about importing, the kernel is trivial.
-CMD ["/bin/sh", "-c", ".venv/bin/python", "-c", "'import silu_and_mul_universal'"] 
+ADD tests/run-tests.sh ./run-tests.sh
+CMD ["sh", "run-tests.sh"]
