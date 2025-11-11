@@ -4,6 +4,7 @@
 
   build2cmake,
   get-kernel-check,
+  kernel-layout-check,
   remove-bytecode-hook,
   torch,
 }:
@@ -23,7 +24,7 @@
 stdenv.mkDerivation (prevAttrs: {
   name = "${extensionName}-torch-ext";
 
-  inherit src;
+  inherit extensionName src;
 
   # Add Torch as a dependency, so that devshells for universal kernels
   # also get torch as a build input.
@@ -31,6 +32,7 @@ stdenv.mkDerivation (prevAttrs: {
 
   nativeBuildInputs = [
     build2cmake
+    kernel-layout-check
     remove-bytecode-hook
   ]
   ++ lib.optionals doGetKernelCheck [
@@ -48,10 +50,10 @@ stdenv.mkDerivation (prevAttrs: {
 
   installPhase = ''
     mkdir -p $out
-    cp -r torch-ext/${extensionName} $out/
+    cp -r torch-ext/${extensionName}/* $out/
+    mkdir $out/${extensionName}
+    cp ${./compat.py} $out/${extensionName}/__init__.py
   '';
 
   doInstallCheck = true;
-
-  getKernelCheck = extensionName;
 })

@@ -13,6 +13,7 @@
   cuda_nvcc,
   get-kernel-check,
   kernel-abi-check,
+  kernel-layout-check,
   ninja,
   python3,
   remove-bytecode-hook,
@@ -79,7 +80,12 @@ in
 stdenv.mkDerivation (prevAttrs: {
   name = "${extensionName}-torch-ext";
 
-  inherit doAbiCheck nvccThreads src;
+  inherit
+    doAbiCheck
+    extensionName
+    nvccThreads
+    src
+    ;
 
   # Generate build files.
   postPatch = ''
@@ -123,10 +129,11 @@ stdenv.mkDerivation (prevAttrs: {
   '';
 
   nativeBuildInputs = [
-    kernel-abi-check
     cmake
     ninja
     build2cmake
+    kernel-abi-check
+    kernel-layout-check
     remove-bytecode-hook
   ]
   ++ lib.optionals doGetKernelCheck [
@@ -223,27 +230,30 @@ stdenv.mkDerivation (prevAttrs: {
   postInstall = ''
     (
       cd ..
-      cp -r torch-ext/${extensionName} $out/
+      cp -r torch-ext/${extensionName}/* $out/
     )
-    cp $out/_${extensionName}_*/* $out/${extensionName}
-    rm -rf $out/_${extensionName}_*
+    mv $out/_${extensionName}_*/* $out/
+    rm -d $out/_${extensionName}_${rev}
+
+    # Set up a compatibility module for older kernels versions, remove when
+    # the updated kernels has been around for a while.
+    mkdir $out/${extensionName}
+    cp ${./compat.py} $out/${extensionName}/__init__.py
   ''
   + (lib.optionalString (stripRPath && stdenv.hostPlatform.isLinux)) ''
-    find $out/${extensionName} -name '*.so' \
+    find $out/ -name '*.so' \
       -exec patchelf --set-rpath "" {} \;
   ''
   + (lib.optionalString (stripRPath && stdenv.hostPlatform.isDarwin)) ''
-    find $out/${extensionName} -name '*.so' \
+    find $out/ -name '*.so' \
       -exec rewrite-nix-paths-macho {} \;
 
     # Stub some rpath.
-    find $out/${extensionName} -name '*.so' \
+    find $out/ -name '*.so' \
       -exec install_name_tool -add_rpath "@loader_path/lib" {} \;
   '';
 
   doInstallCheck = true;
-
-  getKernelCheck = extensionName;
 
   # We need access to the host system on Darwin for the Metal compiler.
   __noChroot = metalSupport;
