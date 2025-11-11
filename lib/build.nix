@@ -1,5 +1,6 @@
 {
   lib,
+  pkgs,
 
 # Every `buildSets` argument is a list of build sets. Each build set is
 # a attrset of the form
@@ -195,7 +196,6 @@ rec {
     }:
     let
       # We just need to get any nixpkgs for use by the path join.
-      pkgs = (builtins.head buildSets).pkgs;
       extensions = mkDistTorchExtensions {
         inherit
           buildSets

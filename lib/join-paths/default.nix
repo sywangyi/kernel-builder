@@ -22,5 +22,10 @@ let
     mkdir -p ${placeholder "out"}/${path}
     cp -r ${pkg}/* ${placeholder "out"}/${path}
   '';
+  prelude = ''
+    mkdir -p ${placeholder "out"}
+  '';
 in
-pkgs.runCommand name args_ (lib.concatStringsSep "\n" (lib.mapAttrsToList copyPath namePaths))
+pkgs.runCommand name args_ (
+  prelude + lib.concatStringsSep "\n" (lib.mapAttrsToList copyPath namePaths)
+)

@@ -43,10 +43,7 @@
       mkBuildPerSystem =
         buildSetPerSystem:
         builtins.mapAttrs (
-          system: buildSet:
-          import lib/build.nix {
-            inherit (nixpkgs) lib;
-          }
+          system: buildSet: nixpkgs.legacyPackages.${system}.callPackage lib/build.nix { }
         ) buildSetPerSystem;
 
       defaultBuildPerSystem = mkBuildPerSystem defaultBuildSetsPerSystem;
@@ -113,9 +110,7 @@
       system:
       let
         # Plain nixkpgs that we use to access utility funtions.
-        pkgs = import nixpkgs {
-          inherit system;
-        };
+        pkgs = nixpkgs.legacyPackages.${system};
         inherit (nixpkgs) lib;
 
         buildName = (import ./lib/build-variants.nix { inherit lib; }).buildName;
