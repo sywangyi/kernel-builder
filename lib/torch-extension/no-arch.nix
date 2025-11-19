@@ -1,11 +1,15 @@
 {
   lib,
+  pkgs,
   stdenv,
 
   build2cmake,
   get-kernel-check,
   kernel-layout-check,
+  python3,
   remove-bytecode-hook,
+  writeText,
+
   torch,
 }:
 
@@ -19,10 +23,21 @@
   rev,
 
   src,
+
+  # A stringly-typed list of Python dependencies. Ideally we'd take a
+  # list of derivations, but we also need to write the dependencies to
+  # the output.
+  pythonDeps,
 }:
 
 let
+  inherit (import ../deps.nix { inherit lib pkgs torch; }) resolvePythonDeps;
+  dependencies = resolvePythonDeps pythonDeps ++ [ torch ];
   moduleName = builtins.replaceStrings [ "-" ] [ "_" ] kernelName;
+  metadata = builtins.toJSON {
+    python-depends = pythonDeps;
+  };
+  metadataFile = writeText "metadata.json" metadata;
 in
 
 stdenv.mkDerivation (prevAttrs: {
@@ -40,7 +55,7 @@ stdenv.mkDerivation (prevAttrs: {
     remove-bytecode-hook
   ]
   ++ lib.optionals doGetKernelCheck [
-    get-kernel-check
+    (get-kernel-check.override { python3 = python3.withPackages (ps: dependencies); })
   ];
 
   dontBuild = true;
@@ -57,7 +72,12 @@ stdenv.mkDerivation (prevAttrs: {
     cp -r torch-ext/${moduleName}/* $out/
     mkdir $out/${moduleName}
     cp ${./compat.py} $out/${moduleName}/__init__.py
+    cp ${metadataFile} $out/metadata.json
   '';
 
   doInstallCheck = true;
+
+  passthru = {
+    inherit dependencies;
+  };
 })

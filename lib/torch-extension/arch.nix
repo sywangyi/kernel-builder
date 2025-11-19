@@ -4,7 +4,9 @@
   xpuSupport ? torch.xpuSupport,
 
   lib,
+  pkgs,
   stdenv,
+  writeText,
 
   # Native build inputs
   build2cmake,
@@ -49,6 +51,11 @@
 
   nvccThreads,
 
+  # A stringly-typed list of Python dependencies. Ideally we'd take a
+  # list of derivations, but we also need to write the dependencies to
+  # the output.
+  pythonDeps,
+
   # Wheter to strip rpath for non-nix use.
   stripRPath ? false,
 
@@ -65,7 +72,17 @@ assert (buildConfig ? xpuVersion) -> xpuSupport;
 assert (buildConfig.metal or false) -> stdenv.hostPlatform.isDarwin;
 
 let
+  inherit (import ../deps.nix { inherit lib pkgs torch; }) resolvePythonDeps;
+
+  dependencies = resolvePythonDeps pythonDeps ++ [ torch ];
+
   moduleName = builtins.replaceStrings [ "-" ] [ "_" ] kernelName;
+
+  metadata = builtins.toJSON {
+    python-depends = pythonDeps;
+  };
+
+  metadataFile = writeText "metadata.json" metadata;
 
   # On Darwin, we need the host's xcrun for `xcrun metal` to compile Metal shaders.
   # It's not supported by the nixpkgs shim.
@@ -139,7 +156,7 @@ stdenv.mkDerivation (prevAttrs: {
     remove-bytecode-hook
   ]
   ++ lib.optionals doGetKernelCheck [
-    get-kernel-check
+    (get-kernel-check.override { python3 = python3.withPackages (ps: dependencies); })
   ]
   ++ lib.optionals cudaSupport [
     cmakeNvccThreadsHook
@@ -241,6 +258,8 @@ stdenv.mkDerivation (prevAttrs: {
     # the updated kernels has been around for a while.
     mkdir $out/${moduleName}
     cp ${./compat.py} $out/${moduleName}/__init__.py
+
+    cp ${metadataFile} $out/metadata.json
   ''
   + (lib.optionalString (stripRPath && stdenv.hostPlatform.isLinux)) ''
     find $out/ -name '*.so' \
@@ -261,6 +280,6 @@ stdenv.mkDerivation (prevAttrs: {
   __noChroot = metalSupport;
 
   passthru = {
-    inherit torch;
+    inherit dependencies torch;
   };
 })
