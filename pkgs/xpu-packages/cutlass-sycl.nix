@@ -51,7 +51,7 @@ stdenv.mkDerivation rec {
     "-DCMAKE_C_COMPILER=icx"
     "-DCMAKE_CXX_COMPILER=icpx"
     "-DCUTLASS_ENABLE_SYCL=ON"
-    "-DDPCPP_SYCL_TARGET=intel_gpu_pvc"
+    "-DDPCPP_SYCL_TARGET=intel_gpu_bmg_g21,intel_gpu_pvc"
     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
     "-DCUTLASS_ENABLE_GTEST_UNIT_TESTS=OFF"
     "-DCUTLASS_ENABLE_TESTS=OFF"
@@ -67,7 +67,7 @@ stdenv.mkDerivation rec {
     set(CUTLASS_INCLUDE_DIR  "$out/include")
     set(CUTLASS_TOOLS_UTIL_INCLUDE_DIR "$out/tools/util/include")
     add_compile_definitions(CUTLASS_ENABLE_SYCL)
-    add_compile_definitions(DPCPP_SYCL_TARGET=intel_gpu_pvc)
+    add_compile_definitions(DPCPP_SYCL_TARGET=intel_gpu_bmg_g21,intel_gpu_pvc)
     add_compile_definitions(SYCL_INTEL_TARGET=1)
     set(ENV{SYCL_PROGRAM_COMPILE_OPTIONS} "-ze-opt-large-register-file")
     set(ENV{IGC_VISAOptions} "-perfmodel")
