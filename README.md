@@ -10,17 +10,12 @@
 </div>
 <hr/>
 
+[Join us on Discord](https://discord.gg/H6Tkmd88N3) for questions and discussions!
+
 This repo contains a Nix package that can be used to build custom machine learning kernels for PyTorch. The kernels are built using the [PyTorch C++ Frontend](https://pytorch.org/cppdocs/frontend.html) and can be loaded from the Hub with the [kernels](https://github.com/huggingface/kernels)
 Python package.
 
 This builder is a core component of the larger kernel build/distribution system.
-
-**Torch 2.9 note:** kernel-builder currently builds Torch 2.9 extensions based on
-the [fifth release candidate](https://dev-discuss.pytorch.org/t/reminder-calls-for-features-upcoming-branch-cut/3225).
-If you upload Torch 2.9 kernels, please validate them against
-the final Torch 2.9.0 release. In the unlikely case of an ABI-breaking
-change, you can rebuild and upload your kernel once kernel-builder
-is updated for the final release
 
 ## 🚀 Quick Start
 
