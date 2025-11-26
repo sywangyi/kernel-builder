@@ -124,16 +124,17 @@ class CMakeBuild(build_ext):
 
 
 
+{% set python_name = name | replace('-', '_') %}
 setup(
-    name="{{ name }}",
+    name="{{ python_name }}",
     # The version is just a stub, it's not used by the final build artefact.
     version="0.1.0",
-    ext_modules=[CMakeExtension("{{ name }}.{{ ops_name }}")],
+    ext_modules=[CMakeExtension("{{ python_name }}.{{ ops_name }}")],
     cmdclass={"build_ext": CMakeBuild},
-    packages=find_packages(where="torch-ext", include=["{{ name }}*"]),
+    packages=find_packages(where="torch-ext", include=["{{ python_name }}*"]),
     package_dir={"": "torch-ext"},
 {% if data_globs %}
-    package_data={"{{ name }}": [ {{ data_globs }} ]},
+    package_data={"{{ python_name }}": [ {{ data_globs }} ]},
 {% endif %}
     zip_safe=False,
     install_requires=["torch"],
