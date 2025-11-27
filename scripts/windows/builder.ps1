@@ -319,16 +319,36 @@ function Get-CMakeConfigureArgs {
     #>
     param(
         [bool]$ShouldInstall,
-        [string]$InstallPrefix
+        [string]$InstallPrefix,
+        [string]$Backend
     )
 
-    # Detect platform architecture
-    $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
-    $vsArch = if ($arch -eq 'Arm64') { 'ARM64' } else { 'x64' }
+    # For XPU backend, use Ninja generator with Intel compilers
+    if ($Backend -and $Backend.ToLower() -eq 'xpu') {
+        Write-Status "Using Ninja generator for XPU backend with Intel SYCL compilers" -Type Info
+        
+        $kwargs = @("..", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release")
+        
+        # Verify Intel compilers are available (CMakeLists.txt will set them correctly)
+        $icx = Get-Command icx -ErrorAction SilentlyContinue
+        
+        if ($icx) {
+            Write-Status "Found Intel compiler: $($icx.Source)" -Type Info
+            Write-Status "CMakeLists.txt will configure icx for Windows (MSVC-compatible mode)" -Type Info
+        } else {
+            Write-Status "Intel compilers not found in PATH. Make sure oneAPI environment is initialized." -Type Error
+            Write-Status "Run: & `"C:\Program Files (x86)\Intel\oneAPI\setvars.bat`"" -Type Error
+            throw "Intel compilers (icx) are required for XPU backend but were not found in PATH. Please initialize oneAPI environment."
+        }
+    } else {
+        # Use Visual Studio generator for other backends
+        $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+        $vsArch = if ($arch -eq 'Arm64') { 'ARM64' } else { 'x64' }
 
-    Write-Status "Detected platform: $arch, using Visual Studio architecture: $vsArch" -Type Info
+        Write-Status "Detected platform: $arch, using Visual Studio architecture: $vsArch" -Type Info
 
-    $kwargs = @("..", "-G", "Visual Studio 17 2022", "-A", $vsArch)
+        $kwargs = @("..", "-G", "Visual Studio 17 2022", "-A", $vsArch)
+    }
 
     # Detect Python from current environment
     $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
@@ -382,13 +402,14 @@ function Invoke-CMakeBuild {
         [string]$BuildConfig,
         [bool]$RunLocalInstall = $false,
         [bool]$RunKernelsInstall = $false,
-        [string]$InstallPrefix = $null
+        [string]$InstallPrefix = $null,
+        [string]$Backend = $null
     )
 
     Write-Status "Building project with CMake..." -Type Info
     Write-Status "Configuration: $BuildConfig" -Type Info
 
-    # Ensure VS environment is initialized
+    # Ensure VS environment is initialized (needed for Ninja and MSVC)
     Initialize-VSEnvironment
 
     # Create build directory
@@ -402,7 +423,7 @@ function Invoke-CMakeBuild {
     Write-Status "Configuring CMake project..." -Type Info
     Push-Location $buildDir
     try {
-        $configureArgs = Get-CMakeConfigureArgs -ShouldInstall ($RunKernelsInstall -or $RunLocalInstall) -InstallPrefix $InstallPrefix
+        $configureArgs = Get-CMakeConfigureArgs -ShouldInstall ($RunKernelsInstall -or $RunLocalInstall) -InstallPrefix $InstallPrefix -Backend $Backend
 
         cmake @configureArgs
 
@@ -573,7 +594,8 @@ try {
                 -BuildConfig $BuildConfig `
                 -RunLocalInstall $LocalInstall.IsPresent `
                 -RunKernelsInstall $KernelsInstall.IsPresent `
-                -InstallPrefix $InstallPrefix
+                -InstallPrefix $InstallPrefix `
+                -Backend $Backend
         }
     }
 
