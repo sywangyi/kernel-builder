@@ -108,18 +108,9 @@ stdenv.mkDerivation (prevAttrs: {
 
   # Generate build files.
   postPatch = ''
-    build2cmake generate-torch --backend ${
-      if cudaSupport then
-        "cuda"
-      else if rocmSupport then
-        "rocm"
-      else if xpuSupport then
-        "xpu"
-      else if metalSupport then
-        "metal"
-      else
-        "cpu"
-    } --ops-id ${rev} build.toml
+    build2cmake generate-torch \
+      --backend ${buildConfig.backend} \
+      --ops-id ${rev} build.toml
   '';
 
   preConfigure =
@@ -281,5 +272,6 @@ stdenv.mkDerivation (prevAttrs: {
 
   passthru = {
     inherit dependencies torch;
+    inherit (torch) variant;
   };
 })

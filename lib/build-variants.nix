@@ -1,44 +1,26 @@
 { lib }:
 let
   inherit (import ./torch-version-utils.nix { inherit lib; })
+    backend
     flattenSystems
-    isCpu
-    isCuda
-    isMetal
-    isRocm
-    isXpu
     ;
 in
 rec {
-  computeFramework =
-    buildConfig:
-    if buildConfig.cpu or false then
-      "cpu"
-    else if buildConfig ? cudaVersion then
-      "cuda"
-    else if buildConfig.metal or false then
-      "metal"
-    else if buildConfig ? "rocmVersion" then
-      "rocm"
-    else if buildConfig ? xpuVersion then
-      "xpu"
-    else
-      throw "Could not find compute framework: no CUDA, ROCm, XPU version specified and CPU and Metal are not enabled";
 
   buildName =
     let
       inherit (import ./version-utils.nix { inherit lib; }) abiString flattenVersion;
       computeString =
         version:
-        if isCpu version then
+        if backend version == "cpu" then
           "cpu"
-        else if isCuda version then
+        else if backend version == "cuda" then
           "cu${flattenVersion (lib.versions.majorMinor version.cudaVersion)}"
-        else if isRocm version then
+        else if backend version == "rocm" then
           "rocm${flattenVersion (lib.versions.majorMinor version.rocmVersion)}"
-        else if isMetal version then
+        else if backend version == "metal" then
           "metal"
-        else if isXpu version then
+        else if backend version == "xpu" then
           "xpu${flattenVersion (lib.versions.majorMinor version.xpuVersion)}"
         else
           throw "No compute framework set in Torch version";
@@ -60,7 +42,7 @@ rec {
       let
         path = [
           version.system
-          (computeFramework version)
+          (backend version)
         ];
         pathVersions = lib.attrByPath path [ ] acc ++ [ (buildName version) ];
       in

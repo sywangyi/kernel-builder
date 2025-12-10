@@ -1,0 +1,9 @@
+[general]
+name = "silu-and-mul"
+backends = [
+    "cpu",
+    "cuda",
+    "metal",
+    "rocm",
+    "xpu",
+]

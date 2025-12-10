@@ -10,7 +10,7 @@ use crate::{
     torch::kernel_ops_identifier,
 };
 
-pub fn write_torch_ext_universal(
+pub fn write_torch_ext_noarch(
     env: &Environment,
     build: &Build,
     target_dir: PathBuf,
@@ -38,8 +38,8 @@ fn write_ops_py(
     path.push("_ops.py");
     let writer = file_set.entry(path);
 
-    env.get_template("universal/_ops.py")
-        .wrap_err("Cannot get _ops-universal.py template")?
+    env.get_template("noarch/_ops.py")
+        .wrap_err("Cannot get noarch _ops.py template")?
         .render_to_write(
             context! {
                 ops_name => ops_name,
@@ -69,8 +69,8 @@ fn write_pyproject_toml(
         .map(|d| format!("\"{d}\""))
         .join(", ");
 
-    env.get_template("universal/pyproject.toml")
-        .wrap_err("Cannot get universal pyproject.toml template")?
+    env.get_template("noarch/pyproject.toml")
+        .wrap_err("Cannot get noarch pyproject.toml template")?
         .render_to_write(
             context! {
                 data_globs => data_globs,

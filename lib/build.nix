@@ -13,18 +13,9 @@
 
 let
   abi = torch: if torch.passthru.cxx11Abi then "cxx11" else "cxx98";
-  buildName = (import ./build-variants.nix { inherit lib; }).buildName;
   supportedCudaCapabilities = builtins.fromJSON (
     builtins.readFile ../build2cmake/src/cuda_supported_archs.json
   );
-  inherit (import ./torch-version-utils.nix { inherit lib; })
-    isCpu
-    isCuda
-    isMetal
-    isRocm
-    isXpu
-    ;
-  inherit (import ./build-variants.nix { inherit lib; }) computeFramework;
 in
 rec {
   readToml = path: builtins.fromTOML (builtins.readFile path);
@@ -32,17 +23,31 @@ rec {
   validateBuildConfig =
     buildToml:
     let
+      hasBackends = buildToml.general ? backends;
       kernels = lib.attrValues (buildToml.kernel or { });
-      hasOldUniversal = builtins.hasAttr "universal" (buildToml.torch or { });
-      hasLanguage = lib.any (kernel: kernel ? language) kernels;
 
     in
-    assert lib.assertMsg (!hasOldUniversal && !hasLanguage) ''
+    assert lib.assertMsg hasBackends ''
       build.toml seems to be of an older version, update it with:
-            build2cmake update-build build.toml'';
+            nix run github:huggingface/kernel-builder#build2cmake update-build build.toml'';
     buildToml;
 
+  # Backends supported by the kernel.
   backends =
+    buildToml:
+    let
+      init = {
+        cpu = false;
+        cuda = false;
+        metal = false;
+        rocm = false;
+        xpu = false;
+      };
+    in
+    lib.foldl (backends: backend: backends // { ${backend} = true; }) init (buildToml.general.backends);
+
+  # Backends for which there is a native (compiled kernel).
+  kernelBackends =
     buildToml:
     let
       kernels = lib.attrValues (buildToml.kernel or { });
@@ -71,8 +76,8 @@ rec {
     buildToml: buildSets:
     let
       backends' = backends buildToml;
-      minCuda = buildToml.general.cuda-minver or "11.8";
-      maxCuda = buildToml.general.cuda-maxver or "99.9";
+      minCuda = buildToml.general.cuda.minver or "11.8";
+      maxCuda = buildToml.general.cuda.maxver or "99.9";
       minTorch = buildToml.torch.minver or "2.0";
       maxTorch = buildToml.torch.maxver or "99.9";
       versionBetween =
@@ -81,15 +86,9 @@ rec {
       supportedBuildSet =
         buildSet:
         let
-          backendSupported =
-            (isCpu buildSet.buildConfig && backends'.cpu)
-            || (isCuda buildSet.buildConfig && backends'.cuda)
-            || (isRocm buildSet.buildConfig && backends'.rocm)
-            || (isMetal buildSet.buildConfig && backends'.metal)
-            || (isXpu buildSet.buildConfig && backends'.xpu)
-            || (buildToml.general.universal or false);
+          backendSupported = backends'.${buildSet.buildConfig.backend};
           cudaVersionSupported =
-            !(isCuda buildSet.buildConfig)
+            buildSet.buildConfig.backend != "cuda"
             || versionBetween minCuda maxCuda buildSet.pkgs.cudaPackages.cudaMajorMinorVersion;
           torchVersionParts = lib.splitString "." buildSet.torch.version;
           torchMajorMinor = lib.concatStringsSep "." (lib.take 2 torchVersionParts);
@@ -120,7 +119,8 @@ rec {
     let
       inherit (lib) fileset;
       buildToml = readBuildConfig path;
-      kernels = lib.filterAttrs (_: kernel: computeFramework buildConfig == kernel.backend) (
+      kernelBackends' = kernelBackends buildToml;
+      kernels = lib.filterAttrs (_: kernel: buildConfig.backend == kernel.backend) (
         buildToml.kernel or { }
       );
       extraDeps =
@@ -141,11 +141,12 @@ rec {
         ) buildToml.kernel
       );
     in
-    if buildToml.general.universal then
-      # No torch extension sources? Treat it as a noarch package.
+    if !kernelBackends'.${buildConfig.backend} then
+      # No compiled kernel files? Treat it as a noarch package.
 
       extension.mkNoArchExtension {
         inherit
+          buildConfig
           src
           rev
           doGetKernelCheck
@@ -182,8 +183,8 @@ rec {
     let
       extensionForTorch =
         { path, rev }:
-        buildSet: {
-          name = buildName buildSet.buildConfig;
+        buildSet: rec {
+          name = value.variant;
           value = mkTorchExtension buildSet {
             inherit path rev doGetKernelCheck;
             stripRPath = true;
@@ -214,11 +215,8 @@ rec {
       };
       buildToml = readBuildConfig path;
       namePaths =
-        if buildToml.general.universal then
-          # Noarch, just get the first extension.
-          { "torch-universal" = builtins.head (builtins.attrValues extensions); }
-        else
-          lib.mapAttrs (name: pkg: toString pkg) extensions;
+        # TODO: treat kernels without compiled parts differently.
+        lib.mapAttrs (name: pkg: toString pkg) extensions;
     in
     import ./join-paths {
       inherit pkgs namePaths;
@@ -247,7 +245,7 @@ rec {
           extension = mkTorchExtension buildSet { inherit path rev doGetKernelCheck; };
         in
         {
-          name = buildName buildSet.buildConfig;
+          name = buildSet.torch.variant;
           value = mkShell {
             nativeBuildInputs = with pkgs; pythonNativeCheckInputs python3.pkgs;
 
@@ -305,7 +303,7 @@ rec {
           );
         in
         {
-          name = buildName buildSet.buildConfig;
+          name = buildSet.torch.variant;
           value = mkShell rec {
             nativeBuildInputs =
               with pkgs;
