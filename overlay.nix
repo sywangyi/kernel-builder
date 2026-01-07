@@ -45,7 +45,22 @@ in
 
   remove-bytecode-hook = prev.callPackage ./pkgs/remove-bytecode-hook { };
 
-  stdenvGlibc_2_27 = prev.callPackage ./pkgs/stdenv-glibc-2_27 { };
+  stdenvGlibc_2_27 = import ./pkgs/stdenv-glibc-2_27 {
+    # Do not use callPackage, because we want overrides to apply to
+    # the stdenv itself and not this file.
+    inherit (final)
+      config
+      fetchFromGitHub
+      overrideCC
+      wrapBintoolsWith
+      wrapCCWith
+      gcc13Stdenv
+      stdenv
+      bintools-unwrapped
+      cudaPackages
+      libgcc
+      ;
+  };
 
   ucx = prev.ucx.overrideAttrs (
     _: prevAttrs: {
@@ -107,6 +122,11 @@ in
           xpuPackages = final.xpuPackages_2025_2;
         };
 
+        torch-bin_2_10 = mkTorch {
+          version = "2.10";
+          xpuPackages = final.xpuPackages_2025_3;
+        };
+
         torch_2_8 = callPackage ./pkgs/python-modules/torch/source/2_8 {
           xpuPackages = final.xpuPackages_2025_1;
         };
@@ -139,7 +159,8 @@ in
     versions = [
       "6.3.4"
       "6.4.2"
-      "7.0.1"
+      "7.0.2"
+      "7.1.1"
     ];
     newRocmPackages = final.callPackage ./pkgs/rocm-packages { };
   in
@@ -159,6 +180,7 @@ in
     xpuVersions = [
       "2025.1.3"
       "2025.2.1"
+      "2025.3.1"
     ];
     newXpuPackages = final.callPackage ./pkgs/xpu-packages { };
   in
